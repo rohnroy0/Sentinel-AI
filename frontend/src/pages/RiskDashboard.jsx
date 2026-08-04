@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, ShieldAlert, GitBranch, AlertTriangle, Server, ArrowRight, Shield } from 'lucide-react';
-import { getRiskDashboard } from '../api/investigationService';
+import { getRiskDashboard, getInvestigationStatus } from '../api/investigationService';
+import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
@@ -21,37 +22,49 @@ export default function RiskDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const invId = localStorage.getItem('inv_id');
 
   useEffect(() => {
+    let invId = localStorage.getItem('inv_id');
+    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) { setLoading(false); return; }
-    (async () => {
+
+    let intervalId = null;
+
+    const loadData = async () => {
       try {
         const dashboardData = await getRiskDashboard(invId);
-        setData(dashboardData);
+        if (dashboardData && typeof dashboardData === 'object') {
+          setData(dashboardData);
+        }
         setError(null);
+
+        const statusData = await getInvestigationStatus(invId).catch(() => null);
+        if (statusData && statusData.isComplete) {
+          if (intervalId) clearInterval(intervalId);
+        }
       } catch (err) {
         setError('Failed to load risk dashboard data. Please try again.');
       } finally {
         setLoading(false);
       }
-    })();
-  }, [invId]);
+    };
+
+    loadData();
+    intervalId = setInterval(loadData, 2000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
+
+  const invId = (() => {
+    let id = localStorage.getItem('inv_id');
+    if (id === 'undefined' || id === 'null') id = null;
+    return id;
+  })();
 
   if (!invId) {
-    return (
-      <Card className="max-w-md text-center mx-auto mt-12">
-        <ShieldAlert className="w-12 h-12 text-[var(--text-subtle)] mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-[var(--text)] mb-1">No active investigation</h2>
-        <p className="text-sm text-[var(--text-muted)] mb-4">You need an active investigation to view the risk dashboard.</p>
-        <Link
-          to="/app/upload"
-          className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-        >
-          Start investigation
-        </Link>
-      </Card>
-    );
+    return <EmptyState />;
   }
 
   if (loading) {

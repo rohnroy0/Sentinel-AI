@@ -37,9 +37,120 @@
 }
 .react-flow__attribution { display: none; }
 
-/* Print styles — lock to white-on-dark for print fidelity. */
+/* ─── Print Styles & PDF Export Layout ───────────────────────────────────────── */
+@page {
+  size: A4 portrait;
+  margin: 12mm 15mm 15mm 15mm;
+}
+
 @media print {
-  body { background: white !important; color: #0F1B2D !important; }
-  .no-print { display: none !important; }
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 10.5pt !important;
+    line-height: 1.4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
+  }
+
+  /* Root layout overrides for print */
+  #root,
+  .h-screen,
+  div,
+  main {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Completely hide all UI Chrome */
+  .no-print,
+  .print-hidden,
+  nav,
+  aside,
+  header,
+  button,
+  [aria-label="Toggle menu"],
+  [aria-label="Help"],
+  [aria-label="Notifications"],
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Dashboard container unwrap */
+  .flex.h-screen {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  .flex-1.flex.flex-col {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main.flex-1 {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  .max-w-7xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Page break rules for report sections */
+  .report-page-header {
+    margin-bottom: 20px !important;
+  }
+
+  .report-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 24px !important;
+  }
+
+  .report-card,
+  .finding-card,
+  .remediation-card,
+  .mitre-card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 12px !important;
+    box-shadow: none !important;
+    border: 1px solid #CBD5E1 !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+  }
+
+  /* Force background colors to print faithfully */
+  .bg-print-dark {
+    background-color: #0F1B2D !important;
+    color: #FFFFFF !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bg-print-light {
+    background-color: #F8FAFC !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .react-flow__background { background: white !important; }
 }

@@ -2,7 +2,8 @@ import { Bell, ChevronDown, HelpCircle, PieChart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function TopNavbar() {
-  const invId = localStorage.getItem('inv_id');
+  let invId = localStorage.getItem('inv_id');
+  if (invId === 'undefined' || invId === 'null') invId = null;
 
   return (
     <header className="h-16 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-end px-6 shrink-0 z-10 gap-3">

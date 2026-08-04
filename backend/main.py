@@ -17,6 +17,8 @@ from ai.attack_chain_builder.builder import build_chains
 from ai.llm.analyzer import analyze_results
 from ai.report_generator.generator import generate_report
 from ai.investigation_graph.builder import build_investigation_graph
+from agent.agent_controller import start_autonomous_investigation, get_agent_status
+from database.models import save_deterministic_investigation, get_investigation_by_id
 
 SENTINEL_VERSION = "1.0.0"
 BUILD_VERSION = "2026.08.01"
@@ -102,63 +104,23 @@ async def info():
 async def upload_scan(req: UploadRequest):
     inv = InvestigationState(req.content)
     investigations[inv.id] = inv
+    try:
+        save_deterministic_investigation(inv)
+    except Exception as e:
+        print(f"[WARN] Initial save failed: {e}")
     return {"investigationId": inv.id}
 
 
 # ─── Pipeline ─────────────────────────────────────────────────────────────
 
-def build_risk_dashboard(risk_findings, chain_data):
-    """Build a rich risk dashboard payload from the deterministic findings."""
-    sev_order = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Info": 0}
-
-    counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Info": 0}
-    for f in risk_findings:
-        sev = f.get("severity", "Info")
-        counts[sev] = counts.get(sev, 0) + 1
-
-    overall = get_overall_risk(risk_findings)
-
-    # Overall numeric score (0-100)
-    score_map = {"Critical": 92, "High": 74, "Medium": 50, "Low": 28, "Info": 10}
-    score = score_map.get(overall, 10)
-
-    # Top exposed services
-    services = []
-    for f in risk_findings:
-        port = f.get("raw_port", {})
-        if port:
-            services.append({
-                "port": port.get("port", "?"),
-                "service": port.get("service", "unknown"),
-                "severity": f.get("severity", "Info"),
-                "finding": f.get("title", "")
-            })
-
-    # Sort findings by severity descending
-    sorted_findings = sorted(risk_findings, key=lambda x: sev_order.get(x.get("severity", "Info"), 0), reverse=True)
-    top_findings = sorted_findings[:3]
-
-    # Most dangerous attack path label
-    most_dangerous = ""
-    if chain_data.get("nodes"):
-        labels = [n["data"]["label"] for n in chain_data["nodes"]]
-        most_dangerous = " → ".join(labels)
-
-    return {
-        "overallRisk": overall,
-        "overallScore": score,
-        "counts": counts,
-        "topFindings": top_findings,
-        "topServices": services[:5],
-        "mostDangerousPath": most_dangerous,
-        "distribution": [
-            {"name": "Critical", "value": counts["Critical"], "color": "#EF4444"},
-            {"name": "High", "value": counts["High"], "color": "#F97316"},
-            {"name": "Medium", "value": counts["Medium"], "color": "#EAB308"},
-            {"name": "Low", "value": counts["Low"], "color": "#3B82F6"},
-            {"name": "Info", "value": counts["Info"], "color": "#6B7280"},
-        ]
-    }
+def build_risk_dashboard(risk_findings, chain_data, detected_services=None):
+    """Build a rich risk dashboard payload dynamically from the findings, services, and attack path."""
+    from ai.risk_engine.risk_calculator import build_dynamic_risk_dashboard
+    return build_dynamic_risk_dashboard(
+        findings=risk_findings,
+        detected_services=detected_services,
+        chain_data=chain_data
+    )
 
 
 def build_remediation(risk_findings):
@@ -277,6 +239,11 @@ async def run_investigation_pipeline(inv: InvestigationState):
             confidence="High",
             processing_ms=parser_ms,
         )
+        inv.detected_services = detected_services
+        try:
+            save_deterministic_investigation(inv)
+        except Exception:
+            pass
         await asyncio.sleep(1)
 
         # ─── Rule Engine ─────────────────────────────────────────────────
@@ -312,6 +279,10 @@ async def run_investigation_pipeline(inv: InvestigationState):
                 confidence=finding.get("confidence", "Medium"),
                 processing_ms=round(rule_ms / max(len(rule_findings), 1), 2),
             )
+        try:
+            save_deterministic_investigation(inv)
+        except Exception:
+            pass
         await asyncio.sleep(1)
 
         # ─── Knowledge Base ──────────────────────────────────────────────
@@ -377,6 +348,28 @@ async def run_investigation_pipeline(inv: InvestigationState):
                 confidence=finding.get("confidence", "Medium"),
                 processing_ms=round(risk_ms / max(len(risk_findings), 1), 2),
             )
+        inv.findings = risk_findings
+        inv.risk_dashboard = build_risk_dashboard(risk_findings, {}, detected_services=detected_services)
+        inv.remediation = build_remediation(risk_findings)
+        # Build a partial investigation graph early (no chain_data yet) so the
+        # frontend graph page has something to display before the pipeline ends.
+        try:
+            partial_graph = build_investigation_graph(
+                parsed_data=parsed_data,
+                detected_services=detected_services,
+                rule_findings=rule_findings,
+                risk_findings=risk_findings,
+                chain_data={"nodes": [], "edges": []},
+                remediation=inv.remediation,
+            )
+            if partial_graph and partial_graph.get("nodes"):
+                inv.graph = partial_graph
+        except Exception:
+            pass
+        try:
+            save_deterministic_investigation(inv)
+        except Exception:
+            pass
         await asyncio.sleep(1)
 
         # ─── Correlation Engine ──────────────────────────────────────────
@@ -448,7 +441,7 @@ async def run_investigation_pipeline(inv: InvestigationState):
         inv.findings = risk_findings
         inv.attack_chains = chain_data
         inv.report = report_data
-        inv.risk_dashboard = build_risk_dashboard(risk_findings, chain_data)
+        inv.risk_dashboard = build_risk_dashboard(risk_findings, chain_data, detected_services=detected_services)
         inv.remediation = remediation
 
         inv.duration_seconds = round(time.perf_counter() - inv.started_at, 3)
@@ -480,10 +473,19 @@ async def run_investigation_pipeline(inv: InvestigationState):
         inv.status = "Investigation Complete"
         inv.progress = 100
         inv.is_complete = True
+        # Persist to SQLite so data survives server restarts
+        try:
+            save_deterministic_investigation(inv)
+        except Exception as persist_err:
+            print(f"[WARN] Failed to persist investigation {inv.id}: {persist_err}")
 
     except Exception as e:
         inv.status = f"Error: {str(e)}"
         inv.is_complete = True
+        try:
+            save_deterministic_investigation(inv)
+        except Exception:
+            pass
 
 
 # ─── Investigation Summary ─────────────────────────────────────────────────
@@ -571,6 +573,15 @@ async def start_investigation(inv_id: str, background_tasks: BackgroundTasks):
 @app.get("/api/investigation/{inv_id}/status")
 async def get_status(inv_id: str):
     if inv_id not in investigations:
+        # Try DB restoration
+        db_state = get_investigation_by_id(inv_id)
+        if db_state:
+            status = db_state.get("current_status", "Unknown")
+            return {
+                "status": status,
+                "progress": 100 if status == "Investigation Complete" else 0,
+                "isComplete": status in ("Investigation Complete", "Error")
+            }
         raise HTTPException(status_code=404, detail="Investigation not found")
     inv = investigations[inv_id]
     return {
@@ -582,23 +593,180 @@ async def get_status(inv_id: str):
 
 @app.get("/api/investigation/{inv_id}/{resource}")
 async def get_resource(inv_id: str, resource: str):
+    # 1. Check if this is an autonomous agent investigation
+    agent_status = get_agent_status(inv_id)
+    if agent_status:
+        # Some resources need to be mapped or adapted
+        attack_chains_data = agent_status.get("attack_chains", [])
+        # If it's a list with at least one chain, return the first chain for the frontend
+        chain = attack_chains_data[0] if attack_chains_data and isinstance(attack_chains_data, list) else (attack_chains_data if isinstance(attack_chains_data, dict) else {"nodes": [], "edges": []})
+
+        agent_risk = agent_status.get("risk_dashboard", {})
+        if not agent_risk or not isinstance(agent_risk, dict) or not agent_risk.get("overallRisk") or not agent_risk.get("overallScore"):
+            agent_risk = build_risk_dashboard(
+                agent_status.get("findings", []),
+                chain,
+                detected_services=agent_status.get("discovered_hosts", [])
+            )
+
+        resource_map = {
+            "findings": agent_status.get("findings", []),
+            "detected-services": agent_status.get("discovered_hosts", []),
+            "graph": agent_status.get("investigation_graph", {}),
+            "attack-chain": chain,
+            "attack-chains": chain,
+            "decisions": agent_status.get("decision_log", agent_status.get("reasoning_steps", [])),
+            "decision-log": agent_status.get("decision_log", agent_status.get("reasoning_steps", [])),
+            "report": agent_status.get("final_report", {}),
+            "risk": agent_risk,
+            "risk-dashboard": agent_risk,
+            "remediation": agent_status.get("remediation", []),
+            "investigation-summary": agent_status.get("investigation_summary", {}),
+        }
+        if resource in resource_map:
+            return resource_map[resource]
+        raise HTTPException(status_code=404, detail="Resource not found in agent state")
+
+    # 2. Check if this is an old deterministic pipeline investigation
     if inv_id not in investigations:
-        raise HTTPException(status_code=404, detail="Investigation not found")
+        # Try to restore from SQLite (survives restarts)
+        db_state = get_investigation_by_id(inv_id)
+        if db_state:
+            class _RestoredInv:
+                pass
+            inv = _RestoredInv()
+            inv.findings = db_state.get("findings", db_state.get("vulnerabilities", []))
+            inv.detected_services = db_state.get("detected_services", db_state.get("discovered_hosts", []))
+            inv.graph = db_state.get("investigation_graph", {"nodes": [], "edges": []})
+            raw_ac = db_state.get("attack_chains", [])
+            inv.attack_chains = raw_ac[0] if isinstance(raw_ac, list) and raw_ac else (raw_ac if isinstance(raw_ac, dict) else {"nodes": [], "edges": []})
+            inv.decision_log = db_state.get("decision_log", db_state.get("reasoning_steps", []))
+            inv.report = db_state.get("final_report", {})
+            inv.risk_dashboard = db_state.get("risk_dashboard", {})
+            inv.remediation = db_state.get("remediation", [])
+            inv.investigation_summary = db_state.get("investigation_summary", {})
+            investigations[inv_id] = inv  # cache back in memory
+        else:
+            return {"status": "empty", "message": "No active investigation", "data": None}
 
     inv = investigations[inv_id]
 
+    # Build a live summary from whatever data the inv object currently has.
+    # This means the summary card is populated as early as possible during polling.
+    _findings = getattr(inv, "findings", [])
+    _services = getattr(inv, "detected_services", [])
+    _graph = getattr(inv, "graph", {"nodes": [], "edges": []})
+    _chains = getattr(inv, "attack_chains", {})
+    _decision_log = getattr(inv, "decision_log", [])
+    _remediation = getattr(inv, "remediation", [])
+
+    _sev = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Info": 0}
+    for _f in _findings:
+        _k = _f.get("severity", "Info")
+        _sev[_k] = _sev.get(_k, 0) + 1
+
+    _mitre = set()
+    for _f in _findings:
+        _m = (_f.get("context") or {}).get("mitre_technique")
+        if _m:
+            _mitre.add(_m.split(" - ")[0].strip())
+
+    _chain_nodes = _chains.get("nodes", []) if isinstance(_chains, dict) else []
+    _chain_stages = len([n for n in _chain_nodes if n.get("id") != "start"])
+
+    _inv_summary = getattr(inv, "investigation_summary", {})
+    if not _inv_summary:
+        _content = getattr(inv, "content", "")
+        _host = "Target Host"
+        import re as _re
+        for _line in (_content or "").splitlines():
+            _match = _re.match(r"\s*Nmap scan report for\s+(.+)", _line)
+            if _match:
+                _host = _re.sub(r"\s*\(.*\)\s*$", "", _match.group(1).strip()) or "Target Host"
+                break
+        _overall_risk = "Info"
+        _severity_order = ["Critical", "High", "Medium", "Low", "Info"]
+        for _sev_level in _severity_order:
+            if _sev.get(_sev_level, 0) > 0:
+                _overall_risk = _sev_level
+                break
+        _inv_summary = {
+            "host": _host,
+            "servicesDiscovered": len(_services),
+            "evidenceCollected": sum(len(_f.get("evidence", [])) for _f in _findings) + len(_services),
+            "rulesEvaluated": len(_decision_log),
+            "rulesMatched": len(_findings),
+            "findingsGenerated": len(_findings),
+            "criticalFindings": _sev["Critical"],
+            "highFindings": _sev["High"],
+            "mediumFindings": _sev["Medium"],
+            "lowFindings": _sev["Low"],
+            "infoFindings": _sev["Info"],
+            "attackChainsBuilt": max(_chain_stages, 1 if _chain_nodes else 0),
+            "mitreTechniquesMapped": len(_mitre),
+            "recommendedRemediations": len(_remediation),
+            "overallRisk": _overall_risk,
+            "durationSeconds": getattr(inv, "duration_seconds", 0),
+            "assessmentConfidence": "High" if _findings else "Medium",
+            "graphNodeCount": len(_graph.get("nodes", [])),
+            "graphEdgeCount": len(_graph.get("edges", [])),
+            "decisionCount": len(_decision_log),
+        }
+
+    _risk_dashboard = getattr(inv, "risk_dashboard", {})
+    if not _risk_dashboard or not isinstance(_risk_dashboard, dict) or not _risk_dashboard.get("overallRisk") or not _risk_dashboard.get("overallScore"):
+        _risk_dashboard = build_risk_dashboard(_findings, _chains, detected_services=_services)
+
     resource_map = {
-        "findings": inv.findings,
-        "detected-services": inv.detected_services,
-        "graph": inv.graph,
-        "attack-chain": inv.attack_chains,
-        "decision-log": inv.decision_log,
-        "report": inv.report,
-        "risk-dashboard": inv.risk_dashboard,
-        "remediation": inv.remediation,
-        "investigation-summary": inv.investigation_summary,
+        "findings": _findings,
+        "detected-services": _services,
+        "graph": _graph,
+        "attack-chain": getattr(inv, "attack_chains", {"nodes": [], "edges": []}),
+        "attack-chains": getattr(inv, "attack_chains", {"nodes": [], "edges": []}),
+        "decisions": _decision_log,
+        "decision-log": _decision_log,
+        "report": getattr(inv, "report", {}),
+        "risk": _risk_dashboard,
+        "risk-dashboard": _risk_dashboard,
+        "remediation": _remediation,
+        "investigation-summary": _inv_summary,
     }
 
     if resource in resource_map:
         return resource_map[resource]
     raise HTTPException(status_code=404, detail="Resource not found")
+
+
+# ─── Autonomous Agent Routes ───────────────────────────────────────────────
+
+class AgentInvestigateRequest(BaseModel):
+    goal: str
+    scan_data: str = None
+
+@app.post("/api/agent/investigate")
+async def start_agent_investigation(req: AgentInvestigateRequest):
+    """Starts a new autonomous investigation."""
+    inv_id = await start_autonomous_investigation(req.goal, req.scan_data)
+    return {"investigation_id": inv_id, "status": "started"}
+
+
+@app.get("/api/agent/status/{investigation_id}")
+async def check_agent_status(investigation_id: str):
+    """Returns the current agent step, findings, and final report status."""
+    status = get_agent_status(investigation_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+    return status
+
+
+class AskSentinelRequest(BaseModel):
+    investigation_id: str
+    question: str
+
+@app.post("/api/agent/ask")
+async def ask_sentinel_endpoint(req: AskSentinelRequest):
+    """Ask Sentinel Q&A endpoint for reasoning over investigation findings."""
+    from agent.ask_sentinel import ask_sentinel_question
+    ans = await ask_sentinel_question(req.investigation_id, req.question)
+    return ans
+

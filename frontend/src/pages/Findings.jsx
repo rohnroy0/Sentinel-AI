@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getFindings, getDetectedServices } from '../api/investigationService';
+import { getFindings, getDetectedServices, getInvestigationStatus } from '../api/investigationService';
+import EmptyState from '../components/EmptyState';
 import {
   ShieldAlert, Info, AlertTriangle, CheckCircle, Server, Database, BookOpen, Cpu, ScanLine,
 } from 'lucide-react';
@@ -173,22 +174,39 @@ export default function Findings() {
   const confMode = resolved === 'dark' ? 'dark' : 'light';
 
   useEffect(() => {
-    const invId = localStorage.getItem('inv_id');
-    if (!invId) {
-      setError('No active investigation found. Please upload a scan first.');
-      setLoading(false);
-      return;
-    }
-    Promise.all([getFindings(invId), getDetectedServices(invId)])
-      .then(([f, d]) => {
-        setFindings(f || []);
-        setDetectedServices(d || []);
-        setLoading(false);
-      })
-      .catch((err) => {
+    let invId = localStorage.getItem('inv_id');
+    if (invId === 'undefined' || invId === 'null') invId = null;
+    if (!invId) { setLoading(false); return; }
+
+    let intervalId = null;
+
+    const loadData = async () => {
+      try {
+        const [f, d] = await Promise.all([
+          getFindings(invId),
+          getDetectedServices(invId),
+        ]);
+        if (Array.isArray(f)) setFindings(f);
+        if (Array.isArray(d)) setDetectedServices(d);
+        setError(null);
+
+        const statusData = await getInvestigationStatus(invId).catch(() => null);
+        if (statusData && statusData.isComplete) {
+          if (intervalId) clearInterval(intervalId);
+        }
+      } catch (err) {
         setError(err.message);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
+    intervalId = setInterval(loadData, 2000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   if (loading) {
@@ -200,6 +218,12 @@ export default function Findings() {
     );
   }
 
+  let invId = localStorage.getItem('inv_id');
+  if (invId === 'undefined' || invId === 'null') invId = null;
+  if (!invId) {
+    return <EmptyState />;
+  }
+
   if (error) {
     return <div className="p-8 text-[var(--danger)]">{error}</div>;
   }
@@ -209,7 +233,7 @@ export default function Findings() {
     const term = search.toLowerCase();
     return (
       f.title?.toLowerCase().includes(term) ||
-      (f.evidence || []).join(' ').toLowerCase().includes(term)
+      (Array.isArray(f.evidence) ? f.evidence.join(' ') : String(f.evidence || '')).toLowerCase().includes(term)
     );
   });
 
@@ -252,7 +276,7 @@ export default function Findings() {
                     Evidence
                   </p>
                   <ul className="space-y-1.5 text-sm text-[var(--text)]">
-                    {finding.evidence.map((item, idx) => (
+                    {(Array.isArray(finding.evidence) ? finding.evidence : finding.evidence ? [String(finding.evidence)] : []).map((item, idx) => (
                       <li key={idx} className="flex items-start gap-2">
                         <span className="w-1 h-1 rounded-full bg-[var(--brand)] mt-2 shrink-0" />
                         <span>{item}</span>

@@ -1,0 +1,78 @@
+{
+  "cve_database": {
+    "ssh": [
+      {
+        "cve_id": "CVE-2023-38408",
+        "severity": "HIGH",
+        "score": 8.1,
+        "description": "OpenSSH PKCS#11 provider remote code execution vulnerability via agent forwarding.",
+        "affected_software": "OpenSSH < 9.3p2",
+        "exploit_risk": "Remote Code Execution",
+        "recommendation": "Upgrade OpenSSH to version 9.3p2 or later and disable PKCS#11 provider forwarding."
+      },
+      {
+        "cve_id": "CVE-2024-6387",
+        "severity": "CRITICAL",
+        "score": 9.8,
+        "description": "regreSSHion: Signal handler race condition in OpenSSH's server (sshd) allowing unauthenticated remote code execution.",
+        "affected_software": "OpenSSH 8.5p1 to 9.7p1",
+        "exploit_risk": "Unauthenticated Remote Root Code Execution",
+        "recommendation": "Upgrade OpenSSH to 9.8p1 or apply vendor patch immediately."
+      }
+    ],
+    "apache": [
+      {
+        "cve_id": "CVE-2021-41773",
+        "severity": "CRITICAL",
+        "score": 9.8,
+        "description": "Path traversal and file disclosure in Apache HTTP Server 2.4.49 allowing arbitrary file read.",
+        "affected_software": "Apache HTTP Server 2.4.49",
+        "exploit_risk": "Remote Command Execution / File Traversal",
+        "recommendation": "Update Apache HTTP Server to 2.4.51 or higher."
+      },
+      {
+        "cve_id": "CVE-2021-42013",
+        "severity": "CRITICAL",
+        "score": 9.8,
+        "description": "Incomplete fix for CVE-2021-41773 in Apache HTTP Server 2.4.50 allowing path traversal and RCE.",
+        "affected_software": "Apache HTTP Server 2.4.50",
+        "exploit_risk": "Remote Code Execution",
+        "recommendation": "Update Apache HTTP Server to 2.4.51 or higher."
+      }
+    ],
+    "mysql": [
+      {
+        "cve_id": "CVE-2023-21980",
+        "severity": "HIGH",
+        "score": 7.5,
+        "description": "Vulnerability in Oracle MySQL Server (Server: Security: Privileges) allowing unauthorized network takeover.",
+        "affected_software": "MySQL Server 8.0.32 and prior",
+        "exploit_risk": "Unauthorized Access / Data Tampering",
+        "recommendation": "Apply Oracle Critical Patch Update or restrict MySQL access to localhost."
+      }
+    ],
+    "vsftpd": [
+      {
+        "cve_id": "CVE-2011-2523",
+        "severity": "CRITICAL",
+        "score": 9.8,
+        "version": "2.3.4",
+        "description": "vsftpd 2.3.4 contains a backdoor payload inserted into the download archive triggering a root shell on port 6200.",
+        "affected_software": "vsftpd 2.3.4",
+        "exploit_risk": "Backdoor Command Execution",
+        "recommendation": "Upgrade vsftpd or replace FTP service with SFTP/SCP."
+      }
+    ],
+    "rdp": [
+      {
+        "cve_id": "CVE-2019-0708",
+        "severity": "CRITICAL",
+        "score": 9.8,
+        "description": "BlueKeep: Remote Code Execution vulnerability in Remote Desktop Services.",
+        "affected_software": "Windows Remote Desktop Services",
+        "exploit_risk": "Wormable Remote Code Execution",
+        "recommendation": "Apply MS19-0708 patch and enable Network Level Authentication (NLA)."
+      }
+    ]
+  }
+}

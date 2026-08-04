@@ -20,12 +20,19 @@ import clsx from 'clsx';
 
 const navSections = [
   {
+    label: 'AI Agent Core',
+    items: [
+      { name: 'AI Agent Mode', path: '/app/agent-console', icon: Cpu },
+    ],
+  },
+  {
     label: 'Overview',
     items: [
       { name: 'Dashboard', path: '/app/overview', icon: LayoutDashboard },
       { name: 'Upload Scan', path: '/app/upload', icon: UploadCloud },
     ],
   },
+
   {
     label: 'Investigation',
     items: [

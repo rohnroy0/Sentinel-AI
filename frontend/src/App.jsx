@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LandingPage from './pages/LandingPage';
 import DashboardLayout from './components/DashboardLayout';
 import DashboardOverview from './pages/DashboardOverview';
+import AgentConsole from './pages/AgentConsole';
 import UploadScan from './pages/UploadScan';
 import Timeline from './pages/Timeline';
 import Findings from './pages/Findings';
@@ -21,7 +22,8 @@ function App() {
         
         {/* Dashboard Routes */}
         <Route path="/app" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="overview" replace />} />
+          <Route index element={<Navigate to="agent-console" replace />} />
+          <Route path="agent-console" element={<AgentConsole />} />
           <Route path="overview" element={<DashboardOverview />} />
           <Route path="upload" element={<UploadScan />} />
           <Route path="investigation/:id" element={<Timeline />} />
@@ -40,3 +42,4 @@ function App() {
 }
 
 export default App;
+

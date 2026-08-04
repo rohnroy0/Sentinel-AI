@@ -60,7 +60,7 @@ export const SEVERITY = {
   },
 };
 
-// 10 node kinds used by the Investigation Graph.
+// Node kinds used by the Investigation Graph.
 export const NODE_KINDS = {
   asset: {
     light: { color: '#4F46E5', bg: '#EEF2FF', border: '#C7D2FE' },
@@ -91,6 +91,11 @@ export const NODE_KINDS = {
     light: { color: '#EA580C', bg: '#FFF7ED', border: '#FDBA74' },
     dark:  { color: '#FB923C', bg: '#3B1F08', border: '#7C2D12' },
     label: 'Risk',
+  },
+  cve: {
+    light: { color: '#E11D48', bg: '#FFF1F2', border: '#FECDD3' },
+    dark:  { color: '#FB7185', bg: '#4C0519', border: '#881337' },
+    label: 'CVE',
   },
   mitre: {
     light: { color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },

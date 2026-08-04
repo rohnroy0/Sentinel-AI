@@ -1,180 +1,138 @@
-# Sentinel-AI 🛡️
+# Sentinel-AI Autonomous Agent 🛡️
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)
 ![React](https://img.shields.io/badge/react-19.0-61DAFB.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)
+![LangGraph](https://img.shields.io/badge/LangGraph-Autonomous-purple.svg)
 
-> **An AI-powered network security investigation platform that parses Nmap scans, calculates risk, and visualizes attack chains.**
+> **Autonomous AI cybersecurity investigation agent that analyzes network threats, correlates vulnerabilities, reasons over attack paths, and provides explainable security intelligence.**
+
+---
 
 ## 📖 Table of Contents
-- [About the Project](#about-the-project)
-- [Key Features](#key-features)
-- [Architecture & User Flow](#architecture--user-flow)
-- [Technologies Used](#technologies-used)
-- [Folder Structure](#folder-structure)
-- [Installation & Setup](#installation--setup)
-- [Future Improvements](#future-improvements)
-- [Contributors](#contributors)
-- [License](#license)
+- [Problem Statement](#-problem-statement)
+- [Agent Workflow & Architecture](#-agent-workflow--architecture)
+- [Tool System & Tool Calling](#-tool-system--tool-calling)
+- [AI Reasoning & Explainability](#-ai-reasoning--explainability)
+- [CVE Intelligence & MITRE Mapping](#-cve-intelligence--mitre-mapping)
+- [SOC Dashboard](#-soc-dashboard)
+- [Setup & Installation](#-setup--installation)
+- [Limitations & Future Improvements](#-limitations--future-improvements)
 
 ---
 
-## 🎯 About the Project
+## 🎯 Problem Statement
 
-Sentinel-AI is a full-stack security investigation tool designed to bridge the gap between raw network scan data and actionable threat intelligence. It takes raw Nmap scan text, processes it using an advanced AI pipeline, and provides an intuitive, interactive dashboard to help security engineers visualize risks, track attack chains, and plan remediation steps.
+Traditional network security scanners produce voluminous text outputs that require manual correlation, CVE lookups, threat mapping, and manual report writing.
 
-**The Problem:** Traditional network scans yield hundreds of lines of text that are difficult to parse, correlate, and prioritize. 
-**The Solution:** Sentinel-AI automates this process by instantly converting text into structured insights, correlating vulnerabilities, assigning risk scores, and generating an interactive threat graph.
-
----
-
-## ✨ Key Features
-- **Automated Scan Parsing:** Upload raw Nmap scan text files to extract hosts, open ports, services, and OS details.
-- **Risk Engine:** Automatically calculates risk scores based on discovered vulnerabilities.
-- **Attack Chain Generation:** Maps out potential lateral movement and escalation paths for attackers.
-- **Interactive Investigation Graph:** A node-based interactive visual representation of the network and identified threats.
-- **AI/LLM Analysis:** Enriches findings with intelligent remediation suggestions.
-- **Comprehensive Dashboards:** Provides timelines, findings tables, and a high-level security overview.
+**Sentinel-AI** solves this by operating as an autonomous AI SOC analyst capable of:
+1. Planning investigation steps autonomously using LangGraph.
+2. Executing cybersecurity tools dynamically.
+3. Conducting hybrid CVE lookups (local cache + NVD fallback).
+4. Mapping findings to MITRE ATT&CK techniques.
+5. Tracking attack surface changes via SQLite memory.
+6. Answering follow-up security queries explainably via **Ask Sentinel**.
 
 ---
 
-## 🔄 Architecture & User Flow
+## 🔄 Agent Workflow & Architecture
 
-### How It Works
-1. **Upload:** The user uploads a raw `.txt` file containing Nmap scan results via the React frontend.
-2. **Parsing:** The FastAPI backend's `nmap_parser` module interprets the raw text.
-3. **Processing & Enrichment:** 
-   - A Rules Engine applies known security heuristics.
-   - The Risk Engine calculates severity.
-   - The Correlation Engine groups related threats.
-4. **Graph Building:** The Attack Chain Builder constructs a relationship graph.
-5. **Visualization:** The enriched data is sent back to the frontend, where it is visualized using dynamic dashboards and a node-based interactive graph.
-
----
-
-## 💻 Technologies Used
-
-**Frontend:**
-- **React (v19)** - UI Library
-- **Vite** - Build Tool & Dev Server
-- **TailwindCSS (v4)** - Utility-first styling framework
-- **@xyflow/react (React Flow)** - Interactive node-based graph rendering
-- **Recharts** - Data visualization and charts
-- **Lucide React** - Iconography
-
-**Backend:**
-- **Python 3.11+** - Core language
-- **FastAPI** - High-performance web framework for the API
-- **Uvicorn** - ASGI server
-- **Pydantic** - Data validation
-
-**Database (Planned):** Currently stateless; easily extensible to PostgreSQL/MongoDB.
-
----
-
-## 📂 Folder Structure
-
-```text
-Sentinel-AI/
-├── backend/                  # FastAPI Backend Application
-│   ├── ai/                   # AI & Processing Pipeline
-│   │   ├── attack_chain_builder/
-│   │   ├── correlation_engine/
-│   │   ├── investigation_graph/
-│   │   ├── knowledge_base/
-│   │   ├── llm/
-│   │   ├── parser/           # Nmap parsers
-│   │   ├── report_generator/
-│   │   └── risk_engine/
-│   ├── main.py               # FastAPI entry point
-│   └── venv/                 # Python Virtual Environment
-├── frontend/                 # React + Vite Frontend Application
-│   ├── public/               # Static assets
-│   ├── src/                  # React source code (Pages, Components, API clients)
-│   ├── package.json          # Node dependencies
-│   └── vite.config.js        # Vite configuration
-├── demo_data/                # Sample Nmap scans for testing
-└── reference_design/         # Screenshots and UI references
+```
+User Goal
+    |
+    ↓
+Agent Controller (agent_controller.py)
+    |
+    ↓
+LangGraph Planner (planner_node.py)
+    |
+    ↓
+Tool Execution Nodes (tool_node.py)
+    ├── Nmap Analysis Tool
+    ├── Vulnerability Lookup Tool
+    ├── Risk Analysis Tool
+    ├── Attack Graph Tool
+    ├── Threat Intelligence Tool
+    └── Report Generation Tool
+    |
+    ↓
+Reasoning Engine (reasoning_node.py)
+    |
+    ↓
+Memory System (memory_node.py -> investigations.db)
+    |
+    ↓
+Final Security Report & Ask Sentinel Interface
 ```
 
 ---
 
-## 🚀 Installation & Setup
+## 🛠️ Tool System & Tool Calling
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v18+)
-- [Python](https://www.python.org/) (3.11+)
+Existing modules are converted into callable AI agent tools:
+- **`nmap_analysis_tool`**: Wraps Nmap text parser to extract active hosts and ports.
+- **`vulnerability_lookup_tool`**: Queries hybrid CVE database for software versions.
+- **`risk_analysis_tool`**: Calculates risk scores and categories.
+- **`attack_graph_tool`**: Generates attacker movement paths and graph relationships.
+- **`threat_intelligence_tool`**: Maps findings to MITRE ATT&CK techniques.
+- **`report_generation_tool`**: Compiles executive intelligence reports.
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/rohnroy0/Sentinel-AI.git
-cd Sentinel-AI
-```
+---
 
-### 2. Backend Setup
-Navigate to the backend directory, install the required packages, and start the FastAPI server.
+## 🧠 AI Reasoning & Explainability
+
+Every finding includes a mandatory 5-point explainable breakdown:
+- **Finding**: Clear summary of the issue.
+- **Reason**: Root cause explanation.
+- **Evidence**: Verified IP, port, and service indicators.
+- **Impact**: Potential exploitation consequences.
+- **Recommendation**: Exact hardening instructions.
+
+---
+
+## 🔍 CVE Intelligence & MITRE Mapping
+
+- **Hybrid CVE Lookup**: Queries local `backend/data/cve_cache.json` for offline reliability and fallbacks to NVD API.
+- **MITRE ATT&CK Mapping**: Maps exposed services (e.g. SSH -> T1021.004, HTTP -> T1190, Weak Credentials -> T1078) to MITRE techniques.
+
+---
+
+## 💻 SOC Dashboard
+
+Sentinel-AI features a professional SOC Investigation Dashboard (`AgentConsole.jsx`):
+- **Agent Timeline**: Real-time status tracker (`Parsing scan`, `Checking vulnerabilities`, `Building attack graph`, `Generating report`).
+- **Finding Cards**: Visualizing findings with evidence and recommendations.
+- **Attack Path Viewer**: Interactive display of multi-stage attack chains and MITRE technique badges.
+- **Reasoning Panel & Ask Sentinel**: Step-by-step audit trail and interactive Q&A box.
+
+---
+
+## 🚀 Setup & Installation
+
+### Backend Setup
 ```bash
 cd backend
-
-# (Optional) Create and activate a virtual environment
 python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On Mac/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install fastapi uvicorn pydantic python-multipart
-
-# Run the backend server
-uvicorn main:app --reload --port 8000
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
 ```
-The backend will be available at `http://localhost:8000`. You can view the API documentation at `http://localhost:8000/docs`.
 
-### 3. Frontend Setup
-Open a new terminal window, navigate to the frontend directory, install dependencies, and start the development server.
+### Frontend Setup
 ```bash
 cd frontend
-
-# Install Node modules
 npm install
-
-# Start the Vite development server
 npm run dev
 ```
-The frontend will be available at `http://localhost:5173`.
+
+### Verification Test Suite
+```bash
+python backend/tests/test_agent_system.py
+```
 
 ---
 
-## ⚙️ Environment Variables
-*(Currently, this project uses local components and does not require complex environment variables for external APIs. If LLM integrations are enabled in the future, add your API keys to a `.env` file in the backend directory.)*
-
----
-
-## 📸 Screenshots
-*(Add screenshots of your UI here to make your README visually appealing)*
-
-<!-- 
-Example:
-![Dashboard Overview](./reference_design/dashboard.png)
-![Investigation Graph](./reference_design/graph.png) 
--->
-
----
-
-## 🚀 Future Improvements
-- [ ] Connect a live Database (e.g., PostgreSQL or MongoDB) for persisting scan history.
-- [ ] Integrate a live LLM API (OpenAI / Anthropic) for deeper, generative remediation reports.
-- [ ] Implement user authentication and team workspaces.
-- [ ] Support importing scans from tools other than Nmap (e.g., Nessus, Qualys).
-
----
-
-## 🤝 Contributors
-- **Rohn Roy** - *Lead Developer* - [rohnroy0](https://github.com/rohnroy0)
-
----
-
-## 📝 License
-This project is open-source and available under the [MIT License](LICENSE).
+## 🔮 Limitations & Future Improvements
+- **Local LLM / Ollama Support**: Support for local open-weights security models.
+- **Multi-Tenant Memory**: Advanced role-based investigation memory indexing.

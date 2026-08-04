@@ -3,10 +3,11 @@ import { useSearchParams, Link } from 'react-router-dom';
 import {
   CheckSquare, Clock, ShieldAlert, FileText, Database, Activity, GitBranch,
   Terminal, Layers, Play, Filter, Network, Server,
-  AlertTriangle, Hash, ChevronRight, Cpu,
+  AlertTriangle, Hash, ChevronRight, Cpu, Loader2,
 } from 'lucide-react';
 import {
   getDecisionLog, getInvestigationSummary, getFindings, getInvestigationGraph,
+  getInvestigationStatus,
 } from '../api/investigationService';
 import InvestigationSummary from '../components/InvestigationSummary';
 import TimelineStrip from '../components/TimelineStrip';
@@ -14,6 +15,7 @@ import ReplayOverlay from '../components/ReplayOverlay';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
 import PillSearch from '../components/PillSearch';
+import EmptyState from '../components/EmptyState';
 
 // Module chip palette — bg/border/icon. Uses CSS-var theme tokens so the chips
 // stay readable in both themes. Text is supplied per-tone below.
@@ -120,7 +122,7 @@ function DecisionCard({ entry }) {
             <Hash className="w-3 h-3" /> Evidence Used
           </p>
           <ul className="space-y-1">
-            {entry.evidence.map((e, i) => (
+            {(Array.isArray(entry.evidence) ? entry.evidence : [String(entry.evidence)]).map((e, i) => (
               <li key={i} className="text-xs text-[var(--text)] bg-[var(--bg)] border border-[var(--border)] rounded px-2.5 py-1.5 font-mono break-words">
                 {e}
               </li>
@@ -158,7 +160,12 @@ function DecisionCard({ entry }) {
         <Hash className="w-3 h-3" />
         <span>{entry.id?.slice(0, 8) || 'entry'}</span>
         <span className="text-[var(--border-strong)]">·</span>
-        <span>{new Date(entry.timestamp).toISOString()}</span>
+        <span>{entry.timestamp ? (
+          (() => {
+            try { return new Date(entry.timestamp).toISOString(); }
+            catch (e) { return String(entry.timestamp); }
+          })()
+        ) : '--:--'}</span>
       </div>
     </Card>
   );
@@ -180,29 +187,46 @@ export default function DecisionLog() {
   const [replayDecisions, setReplayDecisions] = useState([]);
 
   useEffect(() => {
-    const invId = localStorage.getItem('inv_id');
+    let invId = localStorage.getItem('inv_id');
+    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) {
-      setError('No active investigation found.');
       setLoading(false);
       return;
     }
-    Promise.all([
-      getDecisionLog(invId),
-      getInvestigationSummary(invId),
-      getFindings(invId),
-      getInvestigationGraph(invId),
-    ])
-      .then(([d, s, f, g]) => {
-        setDecisions(d || []);
-        setSummary(s);
-        setFindings(f || []);
-        setGraph(g || { nodes: [], edges: [] });
-        setLoading(false);
-      })
-      .catch((err) => {
+
+    let intervalId = null;
+
+    const loadData = async () => {
+      try {
+        const [d, s, f, g] = await Promise.all([
+          getDecisionLog(invId),
+          getInvestigationSummary(invId),
+          getFindings(invId),
+          getInvestigationGraph(invId),
+        ]);
+        if (Array.isArray(d)) setDecisions(d);
+        if (s) setSummary(s);
+        if (Array.isArray(f)) setFindings(f);
+        if (g) setGraph(g);
+        setError(null);
+
+        const statusData = await getInvestigationStatus(invId).catch(() => null);
+        if (statusData && statusData.isComplete) {
+          if (intervalId) clearInterval(intervalId);
+        }
+      } catch (err) {
         setError(err.message);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
+    intervalId = setInterval(loadData, 2000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   const handleStageSelect = useCallback(
@@ -230,7 +254,8 @@ export default function DecisionLog() {
       if (stageParam && d.stage !== stageParam) return false;
       if (confidenceFilter !== 'All' && d.confidence !== confidenceFilter) return false;
       if (term) {
-        const hay = `${d.title || ''} ${d.decision || ''} ${d.outcome || ''} ${(d.evidence || []).join(' ')}`.toLowerCase();
+        const evText = Array.isArray(d.evidence) ? d.evidence.join(' ') : String(d.evidence || '');
+        const hay = `${d.title || ''} ${d.decision || ''} ${d.outcome || ''} ${evText}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
       return true;
@@ -239,13 +264,19 @@ export default function DecisionLog() {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center">
-        <div className="flex items-center space-x-3 text-[var(--text-muted)]">
-          <div className="w-5 h-5 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin" />
-          <span>Loading decision log...</span>
+      <div className="p-8 text-[var(--text-muted)] flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--brand)]" />
+          <span className="font-medium">Loading decision logs...</span>
         </div>
       </div>
     );
+  }
+
+  let invId = localStorage.getItem('inv_id');
+  if (invId === 'undefined' || invId === 'null') invId = null;
+  if (!invId) {
+    return <EmptyState />;
   }
 
   if (error) {

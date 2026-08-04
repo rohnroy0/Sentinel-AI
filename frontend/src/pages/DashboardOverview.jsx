@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getRiskDashboard, getFindings } from '../api/investigationService';
+import { getRiskDashboard, getFindings, getInvestigationStatus } from '../api/investigationService';
+import EmptyState from '../components/EmptyState';
 import {
   ShieldAlert, Activity, ArrowRight, FileText, GitBranch,
   Download, Plus, Target, Cpu, AlertTriangle, LayoutDashboard,
@@ -24,39 +25,49 @@ export default function DashboardOverview() {
   const [findings, setFindings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const invId = localStorage.getItem('inv_id');
 
   useEffect(() => {
+    let invId = localStorage.getItem('inv_id');
+    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) { setLoading(false); return; }
-    Promise.all([getRiskDashboard(invId), getFindings(invId)])
-      .then(([r, f]) => { setRisk(r); setFindings(f); setLoading(false); })
-      .catch((err) => { setError(err.message); setLoading(false); });
-  }, [invId]);
+
+    let intervalId = null;
+
+    const loadData = async () => {
+      try {
+        const [r, f] = await Promise.all([getRiskDashboard(invId), getFindings(invId)]);
+        if (r && typeof r === 'object') setRisk(r);
+        if (Array.isArray(f)) setFindings(f);
+        setError(null);
+
+        const statusData = await getInvestigationStatus(invId).catch(() => null);
+        if (statusData && statusData.isComplete) {
+          if (intervalId) clearInterval(intervalId);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+    intervalId = setInterval(loadData, 2000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
 
   // No investigation yet — empty state
+  const invId = (() => {
+    let id = localStorage.getItem('inv_id');
+    if (id === 'undefined' || id === 'null') id = null;
+    return id;
+  })();
+
   if (!invId) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
-        <div className="max-w-lg w-full text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--sidebar)] border border-[var(--sidebar-active)] flex items-center justify-center mx-auto mb-6">
-            <Cpu className="w-8 h-8 text-[var(--brand)]" />
-          </div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--brand)] mb-2">No active investigation</p>
-          <h1 className="text-3xl font-extrabold text-[var(--text)] mb-3">Start a Sentinel investigation</h1>
-          <p className="text-[var(--text-muted)] mb-8 leading-relaxed">
-            Upload an Nmap scan and Sentinel will parse, correlate, and score all findings
-            automatically across the 8-stage pipeline.
-          </p>
-          <Link
-            to="/app/upload"
-            className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm shadow-[var(--brand)]/20"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Start new investigation</span>
-          </Link>
-        </div>
-      </div>
-    );
+    return <EmptyState />;
   }
 
   const totalFindings = findings.length;

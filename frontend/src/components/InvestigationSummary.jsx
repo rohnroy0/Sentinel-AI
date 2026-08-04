@@ -17,6 +17,7 @@ const KIND_ICONS = {
   rule: Gavel,
   finding: AlertTriangle,
   risk: TrendingUp,
+  cve: ShieldAlert,
   mitre: Crosshair,
   cwe: Shield,
   chain: GitBranch,
@@ -78,6 +79,10 @@ export default function InvestigationSummary({ summary }) {
   const { resolved } = useTheme();
   if (!summary) return null;
 
+  // Safe accessors — treat undefined/null as 0 or dash so nothing renders as "undefined"
+  const n = (v) => (v !== undefined && v !== null ? v : 0);
+  const s = (v) => (v !== undefined && v !== null ? String(v) : '—');
+
   const isDark = resolved === 'dark';
 
   return (
@@ -98,7 +103,7 @@ export default function InvestigationSummary({ summary }) {
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Investigation Summary</p>
             <h2 className="text-lg font-bold text-[var(--text)] truncate">
-              Host · <span className="font-mono text-[var(--brand)]">{summary.host}</span>
+              Host · <span className="font-mono text-[var(--brand)]">{summary.host || 'Target Host'}</span>
             </h2>
           </div>
         </div>
@@ -112,21 +117,21 @@ export default function InvestigationSummary({ summary }) {
 
       {/* Stats grid */}
       <div className="p-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <StatCard label="Services" value={summary.servicesDiscovered} icon={STAT_ICONS.services} accentBg="bg-[var(--info-bg)]" accentText="text-[var(--info)]" />
-        <StatCard label="Evidence" value={summary.evidenceCollected} icon={STAT_ICONS.evidence} accentBg="bg-[var(--surface-2)]" accentText="text-[var(--text-muted)]" />
-        <StatCard label="Rules Eval" value={summary.rulesEvaluated} sub={`${summary.rulesMatched} matched`} icon={STAT_ICONS.rulesEval} accentBg="bg-[var(--warning-bg)]" accentText="text-[var(--warning)]" />
-        <StatCard label="Findings" value={summary.findingsGenerated} sub={`${summary.criticalFindings} Critical`} icon={STAT_ICONS.findings} accentBg="bg-[var(--danger-bg)]" accentText="text-[var(--danger)]" />
-        <StatCard label="Attack Paths" value={summary.attackChainsBuilt} icon={STAT_ICONS.attackChains} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--sev-medium)]" />
-        <StatCard label="MITRE Mapped" value={summary.mitreTechniquesMapped} icon={STAT_ICONS.mitre} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--brand)]" />
-        <StatCard label="Remediations" value={summary.recommendedRemediations} icon={STAT_ICONS.remediations} accentBg="bg-[var(--success-bg)]" accentText="text-[var(--success)]" />
-        <StatCard label="Graph Nodes" value={summary.graphNodeCount} sub={`${summary.graphEdgeCount} edges`} icon={STAT_ICONS.graphNodes} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--brand)]" />
-        <StatCard label="Decisions" value={summary.decisionCount} icon={STAT_ICONS.decisions} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--brand)]" />
-        <StatCard label="Duration" value={`${(summary.durationSeconds || 0).toFixed(2)}s`} icon={STAT_ICONS.duration} accentBg="bg-[var(--surface-2)]" accentText="text-[var(--text-muted)]" />
-        <StatCard label="Confidence" value={summary.assessmentConfidence} icon={STAT_ICONS.confidence} accentBg="bg-[var(--success-bg)]" accentText="text-[var(--success)]" />
+        <StatCard label="Services" value={n(summary.servicesDiscovered)} icon={STAT_ICONS.services} accentBg="bg-[var(--info-bg)]" accentText="text-[var(--info)]" />
+        <StatCard label="Evidence" value={n(summary.evidenceCollected)} icon={STAT_ICONS.evidence} accentBg="bg-[var(--surface-2)]" accentText="text-[var(--text-muted)]" />
+        <StatCard label="Rules Eval" value={n(summary.rulesEvaluated)} sub={`${n(summary.rulesMatched)} matched`} icon={STAT_ICONS.rulesEval} accentBg="bg-[var(--warning-bg)]" accentText="text-[var(--warning)]" />
+        <StatCard label="Findings" value={n(summary.findingsGenerated)} sub={`${n(summary.criticalFindings)} Critical`} icon={STAT_ICONS.findings} accentBg="bg-[var(--danger-bg)]" accentText="text-[var(--danger)]" />
+        <StatCard label="Attack Paths" value={n(summary.attackChainsBuilt)} icon={STAT_ICONS.attackChains} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--sev-medium)]" />
+        <StatCard label="MITRE Mapped" value={n(summary.mitreTechniquesMapped)} icon={STAT_ICONS.mitre} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--brand)]" />
+        <StatCard label="Remediations" value={n(summary.recommendedRemediations)} icon={STAT_ICONS.remediations} accentBg="bg-[var(--success-bg)]" accentText="text-[var(--success)]" />
+        <StatCard label="Graph Nodes" value={n(summary.graphNodeCount)} sub={`${n(summary.graphEdgeCount)} edges`} icon={STAT_ICONS.graphNodes} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--brand)]" />
+        <StatCard label="Decisions" value={n(summary.decisionCount)} icon={STAT_ICONS.decisions} accentBg="bg-[var(--sidebar)]" accentText="text-[var(--brand)]" />
+        <StatCard label="Duration" value={`${(+(summary.durationSeconds) || 0).toFixed(2)}s`} icon={STAT_ICONS.duration} accentBg="bg-[var(--surface-2)]" accentText="text-[var(--text-muted)]" />
+        <StatCard label="Confidence" value={s(summary.assessmentConfidence)} icon={STAT_ICONS.confidence} accentBg="bg-[var(--success-bg)]" accentText="text-[var(--success)]" />
         <StatCard
           label="Risk Score"
           value={summary.overallRisk || 'Info'}
-          sub={`${summary.criticalFindings}C / ${summary.highFindings}H / ${summary.mediumFindings}M`}
+          sub={`${n(summary.criticalFindings)}C / ${n(summary.highFindings)}H / ${n(summary.mediumFindings)}M`}
           icon={STAT_ICONS.risk}
           accentBg="bg-[var(--warning-bg)]"
           accentText="text-[var(--sev-high)]"

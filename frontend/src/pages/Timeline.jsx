@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  CheckCircle2, Circle, Loader2, ArrowRight, Network, CheckSquare, Cpu, Clock, Sparkles,
+  CheckCircle2, Circle, Loader2, ArrowRight, Network, CheckSquare,
 } from 'lucide-react';
 import { getInvestigationStatus } from '../api/investigationService';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import Card from '../components/Card';
 
 const PIPELINE_STAGES = [
@@ -30,7 +31,12 @@ export default function Timeline() {
     let interval;
     const fetchStatus = async () => {
       try {
-        const data = await getInvestigationStatus(id);
+        let invId = localStorage.getItem('inv_id');
+        if (invId === 'undefined' || invId === 'null') invId = null;
+        const targetId = id || invId;
+        if (!targetId) return;
+
+        const data = await getInvestigationStatus(targetId);
         setStatus(data.status);
         setProgress(data.progress);
         if (data.isComplete) {
@@ -55,6 +61,12 @@ export default function Timeline() {
   };
 
   const currentStageIdx = getCurrentStageIndex();
+
+  let invId = localStorage.getItem('inv_id');
+  if (invId === 'undefined' || invId === 'null') invId = null;
+  if (!id && !invId) {
+    return <EmptyState />;
+  }
 
   return (
     <div className="space-y-6">

@@ -3,7 +3,8 @@ import {
   CheckSquare, Square, ShieldAlert, AlertTriangle,
   Terminal, Search, Filter, Target, AlertCircle, Wrench,
 } from 'lucide-react';
-import { getRemediation } from '../api/investigationService';
+import { getRemediation, getInvestigationStatus } from '../api/investigationService';
+import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
@@ -38,46 +39,54 @@ export default function Remediation() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const id = localStorage.getItem('inv_id');
-    if (id) {
-      setInvId(id);
-      fetchData(id);
-    } else {
-      setLoading(false);
-    }
-  }, []);
+    let id = localStorage.getItem('inv_id');
+    if (id === 'undefined' || id === 'null') id = null;
+    if (!id) { setLoading(false); return; }
+    setInvId(id);
 
-  const fetchData = async (id) => {
-    try {
-      setLoading(true);
-      const data = await getRemediation(id);
-      setRemediations(data);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch remediation tasks');
-    } finally {
-      setLoading(false);
-    }
-  };
+    let intervalId = null;
+
+    const loadData = async () => {
+      try {
+        const data = await getRemediation(id);
+        const arr = Array.isArray(data) ? data : (data?.actions || []);
+        if (arr.length > 0) setRemediations(arr);
+        setError(null);
+
+        const statusData = await getInvestigationStatus(id).catch(() => null);
+        if (statusData && statusData.isComplete) {
+          if (intervalId) clearInterval(intervalId);
+        }
+      } catch (err) {
+        setError('Failed to fetch remediation tasks');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+    intervalId = setInterval(loadData, 2000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
 
   const toggleComplete = (id) => {
     setRemediations((prev) => prev.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r)));
   };
 
-  if (!invId && !loading) {
-    return (
-      <Card className="max-w-md text-center mx-auto mt-12">
-        <ShieldAlert className="w-12 h-12 text-[var(--warning)] mx-auto mb-3" />
-        <h2 className="text-xl font-extrabold text-[var(--text)] mb-2">No active investigation</h2>
-        <p className="text-sm text-[var(--text-muted)]">Please upload a scan to view its remediation plan.</p>
-      </Card>
-    );
+  let id = localStorage.getItem('inv_id');
+  if (id === 'undefined' || id === 'null') id = null;
+  if (!id) {
+    return <EmptyState />;
   }
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin" />
+      <div className="p-8 text-[var(--text-muted)] flex items-center gap-3">
+        <div className="w-5 h-5 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin" />
+        <span>Loading remediation actions...</span>
       </div>
     );
   }
@@ -99,7 +108,7 @@ export default function Remediation() {
       (statusFilter === 'Pending' && !r.completed) ||
       (statusFilter === 'Completed' && r.completed);
     const matchesSearch =
-      r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (r.why || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSeverity && matchesStatus && matchesSearch;
   });
