@@ -1,0 +1,45 @@
+/* App.css — Sentinel custom global styles (theme-reactive via CSS variables). */
+
+/* React Flow canvas — routed through --bg so light/dark propagate. */
+.react-flow { background: var(--bg); }
+.react-flow__background { background: var(--bg); }
+
+.react-flow__controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px var(--shadow);
+  overflow: hidden;
+}
+.react-flow__controls button {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+}
+.react-flow__controls button:last-child { border-bottom: none; }
+.react-flow__controls button:hover { background: var(--surface-2); color: var(--text); }
+.react-flow__minimap {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.react-flow__edge-text {
+  fill: var(--text) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+}
+.react-flow__edge-textbg {
+  fill: var(--surface) !important;
+  stroke-width: 1;
+}
+.react-flow__attribution { display: none; }
+
+/* Print styles — lock to white-on-dark for print fidelity. */
+@media print {
+  body { background: white !important; color: #0F1B2D !important; }
+  .no-print { display: none !important; }
+  .react-flow__background { background: white !important; }
+}

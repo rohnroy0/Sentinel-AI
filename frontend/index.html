@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sentinel</title>
+    <script>
+      // Pre-paint theme application — runs synchronously before any paint to
+      // eliminate the flash of wrong theme. Mirrors what ThemeProvider does on
+      // mount; the provider will re-assert after hydration (a no-op when matched).
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme');
+          var mode = (saved === 'light' || saved === 'dark' || saved === 'system') ? saved : 'system';
+          var resolved;
+          if (mode === 'light' || mode === 'dark') {
+            resolved = mode;
+          } else {
+            resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          var root = document.documentElement;
+          root.classList.remove('light', 'dark');
+          root.classList.add(resolved);
+          root.style.colorScheme = resolved;
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

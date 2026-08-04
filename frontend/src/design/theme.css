@@ -1,0 +1,126 @@
+/* Sentinel theme tokens — :root defines light; .dark overrides every token.
+   All UI surfaces consume these via Tailwind arbitrary values (bg-[var(--surface)])
+   or directly in CSS. Flip <html class="dark"> to switch. */
+
+:root {
+  /* Base */
+  --bg: #F8F9FB;
+  --surface: #FFFFFF;
+  --surface-2: #F1F3F7;
+  --sidebar: #EEF2FF;
+  --sidebar-active: #E0E7FF;
+
+  /* Brand */
+  --brand: #4F46E5;
+  --brand-700: #3730A3;
+  --brand-accent: #6366F1;
+
+  /* Border */
+  --border: #E5E7EB;
+  --border-strong: #CBD5E1;
+
+  /* Text */
+  --text: #0F1B2D;
+  --text-muted: #5B6B7D;
+  --text-subtle: #94A3B8;
+
+  /* Status */
+  --success: #16A34A;
+  --success-bg: #DCFCE7;
+  --success-border: #86EFAC;
+
+  --warning: #D97706;
+  --warning-bg: #FEF3C7;
+  --warning-border: #FCD34D;
+
+  --danger: #DC2626;
+  --danger-bg: #FEE2E2;
+  --danger-border: #FCA5A5;
+
+  --info: #2563EB;
+  --info-bg: #DBEAFE;
+  --info-border: #93C5FD;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #CBD5E1;
+  --scrollbar-thumb-hover: #94A3B8;
+
+  /* Shadow (uses raw color so the rgba cast resolves at the theme boundary) */
+  --shadow: rgba(15, 27, 45, 0.06);
+  --shadow-strong: rgba(15, 27, 45, 0.10);
+
+  /* Inline code */
+  --code-text: #166534;
+
+  /* Severity accent (used by inline style={{ backgroundColor: 'var(--sev-critical)' }}) */
+  --sev-critical: #DC2626;
+  --sev-high: #EA580C;
+  --sev-medium: #D97706;
+  --sev-low: #2563EB;
+  --sev-info: #64748B;
+}
+
+/* Dark overrides — every token is redefined so flipping <html class="dark">
+   cascades through every UI surface. */
+.dark {
+  --bg: #0B1220;
+  --surface: #111827;
+  --surface-2: #1F2937;
+  --sidebar: #0F172A;
+  --sidebar-active: #1E293B;
+
+  --brand: #818CF8;
+  --brand-700: #A5B4FC;
+  --brand-accent: #A5B4FC;
+
+  --border: #1F2937;
+  --border-strong: #374151;
+
+  --text: #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-subtle: #64748B;
+
+  --success: #22C55E;
+  --success-bg: #052E16;
+  --success-border: #14532D;
+
+  --warning: #F59E0B;
+  --warning-bg: #3B2A05;
+  --warning-border: #78350F;
+
+  --danger: #F87171;
+  --danger-bg: #3F0F12;
+  --danger-border: #7F1D1D;
+
+  --info: #60A5FA;
+  --info-bg: #0C2447;
+  --info-border: #1E3A8A;
+
+  --scrollbar-thumb: #374151;
+  --scrollbar-thumb-hover: #4B5563;
+
+  --shadow: rgba(0, 0, 0, 0.4);
+  --shadow-strong: rgba(0, 0, 0, 0.6);
+
+  --code-text: #86EFAC;
+
+  --sev-critical: #F87171;
+  --sev-high: #FB923C;
+  --sev-medium: #FBBF24;
+  --sev-low: #60A5FA;
+  --sev-info: #94A3B8;
+}
+
+/* Smooth theme transitions on surfaces and text. */
+body {
+  transition: background-color 250ms ease, color 250ms ease;
+}
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+@media print {
+  /* Print fidelity — no transitions, no animations. */
+  * { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,13 @@
+Starting Nmap 7.93 ( https://nmap.org ) at 2026-08-01 11:30 UTC
+Nmap scan report for jenkins-prod.corp.local (10.0.5.77)
+Host is up (0.0012s latency).
+Not shown: 997 closed tcp ports (reset)
+PORT     STATE SERVICE VERSION
+6379/tcp open  redis   Redis 6.2.6
+8080/tcp open  http    Jetty 10.0.7
+|_http-title: Dashboard [Jenkins]
+27017/tcp open  mongodb MongoDB 5.0.6
+5432/tcp open  postgresql PostgreSQL 13.4
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Nmap done: 1 IP address (1 host up) scanned in 0.93 seconds

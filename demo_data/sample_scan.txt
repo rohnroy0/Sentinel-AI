@@ -1,0 +1,24 @@
+Starting Nmap 7.93 ( https://nmap.org ) at 2026-08-01 10:00 UTC
+Nmap scan report for 192.168.1.100
+Host is up (0.0012s latency).
+Not shown: 995 closed tcp ports (reset)
+PORT     STATE SERVICE VERSION
+21/tcp   open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+22/tcp   open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+| ssh-auth-methods: 
+|   Supported authentication methods: 
+|     publickey
+|     password
+|     keyboard-interactive
+|_  Root login: yes (password)
+80/tcp   open  http    Apache httpd 2.4.49 ((Unix))
+443/tcp  open  ssl/http Apache httpd 2.4.49 ((Unix))
+| ssl-enum-ciphers: 
+|   TLSv1.0: 
+|     ciphers: 
+|       TLS_RSA_WITH_AES_128_CBC_SHA (rsa 2048) - A
+3306/tcp open  mysql   MySQL 5.7.35
+Service Info: OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+Nmap done: 1 IP address (1 host up) scanned in 1.23 seconds
