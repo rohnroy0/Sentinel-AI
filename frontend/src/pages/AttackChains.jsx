@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAttackChains, getInvestigationStatus } from '../api/investigationService';
-import { ReactFlow, Controls, Background, Handle, Position, MarkerType } from '@xyflow/react';
+import { ReactFlow, Controls, Background, Handle, Position, MarkerType, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { GitBranch, ShieldAlert, Server, Wrench, AlertTriangle, Sparkles } from 'lucide-react';
+import { GitBranch, ShieldAlert, Server, Wrench, AlertTriangle, Sparkles, ChevronDown } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
@@ -13,13 +13,6 @@ function readCssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function truncate(value, max = 40) {
-  if (!value) return '';
-  return value.length > max ? value.slice(0, max - 1) + '…' : value;
-}
-
-// Map a node's category (asset, service, finding, cve, mitre, chain, remediation) to a
-// visual treatment.
 function classifyNode(node) {
   const t = (node.type || node.kind || node.category || '').toLowerCase();
   const id = (node.id || '').toLowerCase();
@@ -47,8 +40,6 @@ const KIND_META = {
   node:        { Icon: GitBranch,      tone: 'node',        label: 'NODE' },
 };
 
-// Tailwind classes per tone; these resolve via CSS variables so the panel
-// follows the theme.
 const TONE_CLS = {
   asset:       'bg-[var(--sidebar)] border-[var(--sidebar-active)] text-[var(--brand)]',
   service:     'bg-[var(--info-bg)] border-[var(--info-border)] text-[var(--info)]',
@@ -65,44 +56,105 @@ function ChainNode({ data }) {
   const meta = KIND_META[tone] || KIND_META.node;
   const Icon = meta.Icon;
   const confText = data.confidence_score ? `${data.confidence_score}% Conf` : (data.confidence ? `${data.confidence} Conf` : null);
+  const severity = data.severity || 'Info';
 
   return (
     <div
-      className="rounded-xl border shadow-sm min-w-[240px] max-w-[280px] bg-[var(--surface)] text-[var(--text)] transition-all hover:shadow-md"
+      className="rounded-xl border shadow-sm w-[320px] bg-[var(--surface)] text-[var(--text)] transition-all hover:shadow-md relative"
       style={{ borderColor: 'var(--border)' }}
     >
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-2.5 !bg-[var(--brand)] !border-[var(--surface)]" />
-      <div className={`flex items-center justify-between px-3 py-2 rounded-t-[11px] border-b ${TONE_CLS[tone]}`}
+      <div className={`flex items-center justify-between px-3.5 py-2 rounded-t-[11px] border-b ${TONE_CLS[tone]}`}
            style={{ borderBottomColor: 'var(--border)' }}>
-        <div className="flex items-center gap-1.5">
-          <Icon className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-widest">{data._kindLabel || tone}</span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Icon className="w-3.5 h-3.5 shrink-0" />
+          <span className="text-[10px] font-bold uppercase tracking-widest truncate">{data._kindLabel || tone}</span>
         </div>
-        {confText && (
-          <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-[var(--bg)] border border-[var(--border)] text-[var(--text-muted)]">
-            {confText}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {severity && severity !== 'Info' && (
+            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-[var(--surface)] text-inherit border border-current/30">
+              {severity}
+            </span>
+          )}
+          {confText && (
+            <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-[var(--bg)] border border-[var(--border)] text-[var(--text-muted)]">
+              {confText}
+            </span>
+          )}
+        </div>
       </div>
-      <div className="px-3 py-2.5">
-        <p className="text-sm font-semibold leading-tight">{truncate(data.label, 65)}</p>
-        {data.subLabel && (
-          <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">{truncate(data.subLabel, 85)}</p>
-        )}
-        {data.evidence && typeof data.evidence === 'string' && (
-          <div className="mt-2 text-[10px] text-[var(--text-muted)] bg-[var(--bg)] p-1.5 rounded border border-[var(--border)] font-mono line-clamp-2">
-            {data.evidence.replace('Evidence:\n', '').slice(0, 90)}
-          </div>
-        )}
-        {data.meta && (
+      <div className="px-3.5 py-3">
+        <p className="text-sm font-semibold leading-snug break-words">{data.label}</p>
+        
+        {data.meta && Array.isArray(data.meta) && data.meta.length > 0 && (
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-            {(Array.isArray(data.meta) ? data.meta : [String(data.meta)]).slice(0, 3).map((m, i) => (
-              <span key={i} className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)]">
-                {truncate(m, 18)}
+            {data.meta.map((m, i) => (
+              <span key={i} className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--bg)] text-[var(--text-muted)] break-words">
+                {m}
               </span>
             ))}
           </div>
         )}
+
+        <details className="mt-3 group border-t border-[var(--border)] pt-2 relative">
+          <summary className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)] list-none flex items-center justify-between">
+            <span>Detailed Evidence & Info</span>
+            <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform text-[var(--text-subtle)]" />
+          </summary>
+          <div className="mt-2.5 space-y-2 text-xs">
+            {data.host && (
+              <div className="flex items-center justify-between border-b border-[var(--border)]/50 pb-1">
+                <span className="text-[var(--text-muted)]">Host</span>
+                <span className="font-mono text-[var(--brand)]">{data.host}</span>
+              </div>
+            )}
+            {data.port && (
+              <div className="flex items-center justify-between border-b border-[var(--border)]/50 pb-1">
+                <span className="text-[var(--text-muted)]">Port</span>
+                <span className="font-mono">{data.port}</span>
+              </div>
+            )}
+            {data.service && (
+              <div className="flex items-center justify-between border-b border-[var(--border)]/50 pb-1">
+                <span className="text-[var(--text-muted)]">Service</span>
+                <span className="font-mono">{data.service} {data.version || ''}</span>
+              </div>
+            )}
+            {data.cve && (
+              <div className="flex items-center justify-between border-b border-[var(--border)]/50 pb-1">
+                <span className="text-[var(--text-muted)]">CVE</span>
+                <span className="font-mono text-[var(--danger)]">{data.cve}</span>
+              </div>
+            )}
+            {data.impact && (
+              <div className="pt-1">
+                <span className="block text-[10px] uppercase text-[var(--text-muted)] mb-0.5">Impact</span>
+                <span className="block text-[var(--text)] leading-relaxed break-words">{data.impact}</span>
+              </div>
+            )}
+            {data.evidence && typeof data.evidence === 'string' && (
+              <div className="pt-1">
+                <span className="block text-[10px] uppercase text-[var(--text-muted)] mb-1">Evidence</span>
+                <div className="bg-[var(--bg)] p-2 rounded-lg border border-[var(--border)] font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-muted)]">
+                  {data.evidence.replace(/^Evidence:\s*/i, '')}
+                </div>
+              </div>
+            )}
+            {tone === 'remediation' && data.fix_action && (
+              <div className="pt-1">
+                <span className="block text-[10px] uppercase text-[var(--success)] mb-1 font-bold">Recommendation</span>
+                <div className="bg-[var(--success-bg)]/30 text-[var(--success)] p-2 rounded-lg border border-[var(--success-border)] break-words leading-relaxed">
+                  {data.fix_action}
+                </div>
+                {data.reason && (
+                  <p className="mt-1.5 text-[10px] text-[var(--text-muted)] italic break-words">
+                    <span className="font-semibold not-italic">Why: </span>{data.reason}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </details>
       </div>
       <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !bg-[var(--brand)] !border-[var(--surface)]" />
     </div>
@@ -111,67 +163,88 @@ function ChainNode({ data }) {
 
 const nodeTypes = { chain: ChainNode };
 
-// Build a left-to-right layered layout: each node's x = depth from sources;
-// siblings at the same depth get the same x but staggered y.
+function estimateNodeHeight(node) {
+  let h = 45; // Header
+  const label = node.label || node.name || node.title || '';
+  h += Math.max(1, Math.ceil(label.length / 38)) * 20;
+
+  if (node.meta && Array.isArray(node.meta) && node.meta.length > 0) {
+    h += 34; // Meta tags row
+  }
+  
+  h += 48; // Padding and <details> summary row buffer
+  
+  return Math.max(h + 20, 110);
+}
+
 function layoutChains(nodes, edges) {
-  if (!nodes.length) return { nodes: [], edges: [] };
+  if (!nodes.length) return { nodes: [], edges: [], depthCount: 0 };
 
-  const byId = new Map(nodes.map((n) => [n.id, { ...n, _children: [], _parents: [] }]));
-  for (const e of edges) {
-    const src = byId.get(e.source);
-    const tgt = byId.get(e.target);
-    if (src && tgt) {
-      src._children.push(tgt.id);
-      tgt._parents.push(src.id);
+  const getRank = (n) => {
+    const t = classifyNode(n);
+    if (t === 'asset') return 0;
+    if (t === 'service') return 1;
+    if (t === 'finding') return 2;
+    if (t === 'cve') return 3;
+    if (t === 'mitre') return 4;
+    if (t === 'chain') {
+      const stage = (n.stage || n.label || '').toLowerCase();
+      if (stage.includes('initial access')) return 5.0;
+      if (stage.includes('privilege escalation')) return 5.1;
+      if (stage.includes('lateral movement')) return 5.2;
+      if (stage.includes('data exposure')) return 5.3;
+      return 5.9;
     }
-  }
-
-  // Topological depth (longest path from a source node).
-  const depth = new Map();
-  const computeDepth = (id, stack = new Set()) => {
-    if (depth.has(id)) return depth.get(id);
-    if (stack.has(id)) return 0;
-    stack.add(id);
-    const n = byId.get(id);
-    if (!n || n._parents.length === 0) { depth.set(id, 0); return 0; }
-    const d = Math.max(...n._parents.map((p) => computeDepth(p, stack) + 1));
-    depth.set(id, d);
-    return d;
+    if (t === 'remediation') return 6.0;
+    return 7;
   };
-  for (const n of nodes) computeDepth(n.id);
 
-  // Group by depth.
-  const byDepth = new Map();
-  for (const n of nodes) {
-    const d = depth.get(n.id) || 0;
-    if (!byDepth.has(d)) byDepth.set(d, []);
-    byDepth.get(d).push(n.id);
-  }
+  nodes.forEach(n => {
+    n._rank = getRank(n);
+    n._estimatedHeight = estimateNodeHeight(n);
+  });
 
-  const COL = 300;
-  const ROW = 130;
+  const uniqueRanks = Array.from(new Set(nodes.map(n => n._rank))).sort((a, b) => a - b);
+  const rankToCol = new Map(uniqueRanks.map((r, i) => [r, i]));
+
+  const nodesByCol = new Map();
+  uniqueRanks.forEach((_, i) => nodesByCol.set(i, []));
+
+  nodes.forEach(n => {
+    const col = rankToCol.get(n._rank);
+    nodesByCol.get(col).push(n);
+  });
+
+  const COLUMN_WIDTH = 320;
+  const GAP_X = 90;
+  const GAP_Y = 32;
   const PAD_X = 40;
   const PAD_Y = 40;
-  const depthCount = byDepth.size;
+
+  const colHeights = new Map();
+  let maxColHeight = 0;
+  for (const [col, colNodes] of nodesByCol.entries()) {
+    const h = colNodes.reduce((sum, n) => sum + n._estimatedHeight + GAP_Y, 0) - GAP_Y;
+    colHeights.set(col, h);
+    if (h > maxColHeight) maxColHeight = h;
+  }
 
   const positions = new Map();
-  for (const [d, ids] of byDepth.entries()) {
-    ids.forEach((id, idx) => {
-      positions.set(id, {
-        x: PAD_X + d * COL,
-        y: PAD_Y + idx * ROW,
+  for (const [col, colNodes] of nodesByCol.entries()) {
+    let currentY = PAD_Y + Math.max(0, (maxColHeight - colHeights.get(col)) / 2);
+    for (const n of colNodes) {
+      positions.set(n.id, {
+        x: PAD_X + col * (COLUMN_WIDTH + GAP_X),
+        y: currentY
       });
-    });
+      currentY += n._estimatedHeight + GAP_Y;
+    }
   }
 
   const fmtNodes = nodes.map((n) => {
     const tone = classifyNode(n);
     const meta = KIND_META[tone] || KIND_META.node;
     const labelText = n.label || n.name || n.title || n.id || 'Node';
-    const subLabel =
-      n.description ||
-      n.riskLevel ||
-      (Array.isArray(n.services) ? `${n.services.length} service(s)` : '');
     return {
       ...n,
       id: n.id,
@@ -180,8 +253,7 @@ function layoutChains(nodes, edges) {
       data: {
         ...n,
         label: labelText,
-        subLabel,
-        meta: n.tags || n.evidence || (n.port ? [`port ${n.port}`] : []),
+        meta: n.tags || n.evidence ? (Array.isArray(n.meta) ? n.meta : n.port ? [`port ${n.port}`] : []) : [],
         _tone: tone,
         _kindLabel: meta.label || (KIND_META[n.type?.toLowerCase()]?.label) || tone.toUpperCase(),
       },
@@ -190,23 +262,37 @@ function layoutChains(nodes, edges) {
     };
   });
 
-  const fmtEdges = edges.map((e, idx) => ({
-    id: (e.id || `${e.source}→${e.target}`) + `-${idx}`,
-    source: e.source,
-    target: e.target,
-    type: 'smoothstep',
-    animated: true,
-    style: { stroke: 'var(--danger)', strokeWidth: 2 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--danger)' },
-    label: e.label,
-    labelStyle: { fill: 'var(--text)', fontSize: 11, fontWeight: 600 },
-    labelBgStyle: { fill: 'var(--surface)', stroke: 'var(--danger)', strokeWidth: 1 },
-    labelBgPadding: [4, 4],
-  }));
+  const fmtEdges = edges.map((e, idx) => {
+    const isImportant = e.label && ['exploits', 'escalates', 'pivots', 'exfiltrates', 'mitigated by'].includes(e.label.toLowerCase());
+    return {
+      id: (e.id || `${e.source}→${e.target}`) + `-${idx}`,
+      source: e.source,
+      target: e.target,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: 'var(--danger)', strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--danger)' },
+      label: isImportant ? e.label : undefined,
+      labelStyle: { fill: 'var(--text)', fontSize: 10, fontWeight: 600 },
+      labelBgStyle: { fill: 'var(--surface)', stroke: 'var(--danger)', strokeWidth: 1, rx: 4, ry: 4 },
+      labelBgPadding: [6, 4],
+    };
+  });
 
-  // Inject a top-level summary node so the graph never feels empty for users
-  // with shallow data. We render it as a dashed border if no real chain exists.
-  return { nodes: fmtNodes, edges: fmtEdges, depthCount, byKind: { service: 0, finding: 0, chain: 0, remediation: 0, node: 0 } };
+  return { nodes: fmtNodes, edges: fmtEdges, depthCount: uniqueRanks.length };
+}
+
+function AutoFitBounds({ nodes }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    if (nodes && nodes.length > 0) {
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.15, duration: 400 });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes, fitView]);
+  return null;
 }
 
 export default function AttackChains() {
@@ -261,7 +347,6 @@ export default function AttackChains() {
     [raw]
   );
 
-  // Compute summary stats from raw nodes (independent of layout).
   const stats = useMemo(() => {
     const counts = { service: 0, finding: 0, chain: 0, remediation: 0, node: 0 };
     for (const n of raw.nodes || []) counts[classifyNode(n)] += 1;
@@ -378,7 +463,7 @@ export default function AttackChains() {
       )}
 
       <div className="w-full h-[600px] bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden relative shadow-sm">
-        <div className="absolute top-4 right-4 z-10 bg-[var(--surface)] p-4 border border-[var(--border)] rounded-xl shadow-sm">
+        <div className="absolute top-4 right-4 z-10 bg-[var(--surface)] p-4 border border-[var(--border)] rounded-xl shadow-sm pointer-events-none opacity-90">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Legend</p>
           <div className="space-y-1.5 text-xs text-[var(--text)]">
             <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-[var(--brand)]" /> Asset / Perimeter</div>
@@ -394,7 +479,17 @@ export default function AttackChains() {
             </div>
           </div>
         </div>
-        <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.2 }} minZoom={0.1} maxZoom={2} proOptions={{ hideAttribution: true }}>
+        <ReactFlow 
+          nodes={nodes} 
+          edges={edges} 
+          nodeTypes={nodeTypes} 
+          minZoom={0.05} 
+          maxZoom={2.5} 
+          proOptions={{ hideAttribution: true }}
+          nodesConnectable={false}
+          nodesDraggable={true}
+        >
+          <AutoFitBounds nodes={nodes} />
           <Background color={bgColor} gap={16} />
           <Controls className="!bg-[var(--surface)] !border !border-[var(--border)] [&>button]:!bg-[var(--surface)] [&>button]:!text-[var(--text)] [&>button]:!border-[var(--border)] [&>button:hover]:!bg-[var(--bg)]" />
         </ReactFlow>

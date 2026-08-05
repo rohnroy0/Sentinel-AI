@@ -148,8 +148,22 @@ This document tracks known issues, bug reports, root cause analyses, and resolut
   - **`backend/ai/attack_chain_builder/builder.py`**: Stage 3 (Lateral Movement) now requires an actual lateral-movement-capable service (`_LM_SERVICES = {ssh, mysql, redis, mongodb, postgresql, smb, rdp, vnc, winrm}` or `_LM_PORTS`). Stage 4 (Sensitive Data Exposure) now requires a database/FTP/cleartext finding (`_SDE_SERVICES = {mysql, mongodb, redis, ftp, postgresql, elasticsearch, cassandra}`). Attack journey explanation language changed to cautious: "may be exploitable", "could potentially allow", "may be able to leverage", "depending on system configuration". PE node label changed to "Potential Privilege Escalation" with "requires investigation" disclaimer. LM/SDE node subLabels use "may enable" and "potential risk" phrasing.
   - All 8 verification tests pass.
 
-## Active / Monitored Issues
+### Bug ID: BUG-014
+- **Issue:** Attack Chains Graph visualization issues: nodes overlapping, text clipped by fixed heights, evidence hidden by line-clamp, viewport compressed, and edges unreadable due to overlapping cross-connections.
+- **Cause:**
+  1. `AttackChains.jsx` used static depth calculation and fixed row heights (130px) that ignored actual node content heights, causing nodes to stack on top of each other.
+  2. The frontend truncated titles and clamped evidence to 2 lines instead of expanding dynamically.
+  3. No explicit strict stage ordering for `mitre-ia -> mitre-pe -> mitre-lm -> mitre-sde`, leading to messy vertical layouts.
+  4. Missing `fitView` triggers caused the initial load to be zoomed out incorrectly.
+- **Status:** `Fixed`
+- **Fix:**
+  - Refactored `layoutChains` in `frontend/src/pages/AttackChains.jsx` to map nodes strictly to 7 hierarchical ranks (`Asset → Service → Finding → CVE → MITRE → Attack Stage → Remediation`).
+  - Added `estimateNodeHeight` logic to calculate dynamic pixel heights based on content (titles, evidence, remediation text).
+  - Implemented automatic column height calculation with center-aligned vertical offset `(maxColHeight - colHeights.get(col)) / 2`.
+  - Used HTML `<details>` and `<summary>` in `ChainNode` for compact default view and expandable full evidence/details.
+  - Implemented `AutoFitBounds` hook triggering `fitView()` dynamically on layout updates.
 
+## Active / Monitored Issues
 
 ### Bug ID: BUG-004
 - **Issue:** Long Nmap scan outputs (> 5,000 lines) may cause increased latency during synchronous parsing.

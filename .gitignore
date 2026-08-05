@@ -1,0 +1,14 @@
+.env
+*.env
+*.db
+*.sqlite
+backend/data/
+backend/**/data/
+backend/**/database/*.db
+logs/
+uploads/
+reports/
+node_modules/
+venv/
+__pycache__/
+*.log

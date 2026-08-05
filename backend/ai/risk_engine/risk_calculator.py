@@ -17,6 +17,14 @@ SEV_WEIGHTS = {
 
 def calculate_risk(enriched_findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for finding in enriched_findings:
+        # 10. Risk Engine Input Validation
+        if not finding.get("host") or not finding.get("port") or not finding.get("service") or not finding.get("evidence"):
+            finding["severity"] = "Info"
+            finding["riskLevel"] = "Ignored (Validation Failed)"
+            finding["confidence"] = "Low"
+            finding["confidence_score"] = 0
+            continue
+            
         rule_id = finding.get("rule_id")
 
         # Deterministic Risk Scoring
@@ -90,6 +98,25 @@ def calculate_risk(enriched_findings: List[Dict[str, Any]]) -> List[Dict[str, An
                 finding["severity"] = "Info"
             if not finding.get("riskLevel"):
                 finding["riskLevel"] = "Informational"
+
+        # Check CVSS constraints
+        cvss = finding.get("cvss") or finding.get("cvss_score") or finding.get("score")
+        if cvss is not None and cvss != "N/A":
+            try:
+                cvss_val = float(cvss)
+                current_sev = finding.get("severity", "Info")
+                if current_sev == "Info":
+                    if cvss_val >= 9.0:
+                        finding["severity"] = "Critical"
+                        finding["riskLevel"] = "Critical CVSS Rating"
+                    elif cvss_val >= 7.0:
+                        finding["severity"] = "High"
+                        finding["riskLevel"] = "High CVSS Rating"
+                    elif cvss_val >= 4.0:
+                        finding["severity"] = "Medium"
+                        finding["riskLevel"] = "Medium CVSS Rating"
+            except (ValueError, TypeError):
+                pass
 
         # Format Remediation from context
         context = finding.get("context", {})

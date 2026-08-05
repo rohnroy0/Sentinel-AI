@@ -80,7 +80,7 @@ export default function Sidebar() {
       {/* Sidebar container */}
       <div
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 w-64 bg-[var(--sidebar)] border-r border-[var(--border)] transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col',
+          'fixed inset-y-0 left-0 z-40 w-64 h-screen bg-[var(--sidebar)] border-r border-[var(--border)] transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -96,7 +96,7 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[var(--border)] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[var(--sidebar-active)]">
           {navSections.map((section) => (
             <div key={section.label}>
               <p className="text-[10px] font-bold text-[var(--brand-accent)] uppercase tracking-widest px-3 mb-2">

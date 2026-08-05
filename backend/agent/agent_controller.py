@@ -75,17 +75,32 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
         raw_sev = (f.get("severity") or "High").capitalize()
         sev = raw_sev if raw_sev in ["Critical", "High", "Medium", "Low", "Info"] else "High"
         
+        # Determine actual title
+        if f.get("title"):
+            title = f.get("title")
+        elif f.get("description") and len(f.get("description")) < 50:
+            title = f.get("description")
+        elif f.get("finding"):
+            title = f.get("finding")
+        elif cve != "N/A" and cve != "CVE-2021-41773":
+            title = f"{service.capitalize()} Vulnerability ({cve})"
+        else:
+            title = f"{service.capitalize()} Exposure"
+            
         findings.append({
-            "id": f.get("id", f"finding-{i+1}"),
+            "id": f.get("finding_id") or f.get("id", f"finding-{i+1}"),
             "rule_id": f.get("rule_id", f"RULE_00{i+1}"),
-            "title": f.get("finding") or f.get("title") or f"Exposed {service} Service ({cve})",
+            "title": title,
             "severity": sev,
-            "confidence": f.get("confidence", "High"),
+            "confidence": f.get("confidence") or f.get("confidence_level", "High"),
+            "confidence_score": f.get("confidence_score", 90),
+            "confidence_level": f.get("confidence_level", "High"),
+            "confidence_reason": f.get("confidence_reason", "Extracted from scan evidence"),
             "host": host,
             "service": service,
             "port": str(f.get("port", "80")),
             "cve_id": cve,
-            "why": f.get("reason") or f.get("why") or f"Publicly accessible service {service} with active vulnerability {cve}.",
+            "why": f.get("reason") or f.get("why") or f.get("description") or f"Publicly accessible service {service} with active vulnerability {cve}.",
             "evidence": f.get("evidence") if isinstance(f.get("evidence"), list) else [f"Host: {host}", f"Service: {service}", f"CVE: {cve}"],
             "impact": f.get("impact") or f"Potential unauthorized access or compromise on host {host}.",
             "remediation": f.get("recommendation") or f.get("remediation") or f"Upgrade {service} and restrict public network exposure.",

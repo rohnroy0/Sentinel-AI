@@ -6,6 +6,7 @@ import AIInvestigationSummary from '../components/AIInvestigationSummary';
 import AttackPathViewer from '../components/AttackPathViewer';
 import ReasoningPanel from '../components/ReasoningPanel';
 import AskSentinelDrawer from '../components/AskSentinelDrawer';
+import { fetchApi } from '../api/apiClient';
 import {
   Cpu,
   Play,
@@ -79,14 +80,14 @@ export default function AgentConsole() {
     setStatusData(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/agent/investigate', {
+      const data = await fetchApi('/agent/investigate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ goal, scan_data: scanData }),
       });
-      const data = await response.json();
-      setInvestigationId(data.investigation_id);
-      localStorage.setItem('inv_id', data.investigation_id);
+      if (data && data.investigation_id) {
+        setInvestigationId(data.investigation_id);
+        localStorage.setItem('inv_id', data.investigation_id);
+      }
     } catch (err) {
       console.error('Failed to start investigation:', err);
       setIsInvestigating(false);
@@ -98,8 +99,7 @@ export default function AgentConsole() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/agent/status/${investigationId}`);
-        const data = await res.json();
+        const data = await fetchApi(`/agent/status/${investigationId}`);
         setStatusData(data);
 
         if (data.is_complete) {

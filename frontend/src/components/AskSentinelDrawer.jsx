@@ -16,6 +16,7 @@ import {
   Maximize2,
   Minimize2
 } from 'lucide-react';
+import { fetchApi } from '../api/apiClient';
 
 const SUGGESTED_QUESTIONS = [
   'Why is this host dangerous?',
@@ -62,12 +63,10 @@ export default function AskSentinelDrawer({ investigationId = '', statusData = n
         ]);
       } else {
         const activeInvId = investigationId || localStorage.getItem('inv_id') || '';
-        const response = await fetch('http://localhost:8000/api/agent/ask', {
+        const data = await fetchApi('/agent/ask', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ investigation_id: activeInvId, question: q }),
         });
-        const data = await response.json();
         setChatHistory((prev) => [
           ...prev,
           {

@@ -6,7 +6,7 @@ export default function DashboardLayout() {
   return (
     <div className="flex h-screen bg-[var(--bg)] text-[var(--text)] overflow-hidden">
       {/* Sidebar — hidden when printing */}
-      <div className="no-print">
+      <div className="no-print lg:h-screen shrink-0">
         <Sidebar />
       </div>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
