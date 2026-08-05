@@ -5,8 +5,9 @@ from agent.state import AgentState
 from agent.graph import create_investigation_graph
 from database.models import save_investigation, get_investigation_by_id
 
-# In-memory session runtime cache
+# In-memory session runtime cache & background task tracker
 agent_investigations: Dict[str, AgentState] = {}
+_background_tasks = set()
 
 async def start_autonomous_investigation(goal: str, scan_data: str = None, user_id: str = None) -> str:
     """
@@ -38,9 +39,12 @@ async def start_autonomous_investigation(goal: str, scan_data: str = None, user_
     save_investigation(state)
     
     # Run the graph workflow asynchronously in background task
-    asyncio.create_task(_run_agent_workflow(inv_id))
+    task = asyncio.create_task(_run_agent_workflow(inv_id))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     
     return inv_id
+
 
 async def _run_agent_workflow(inv_id: str):
     """Executes the LangGraph state machine workflow."""
@@ -49,10 +53,15 @@ async def _run_agent_workflow(inv_id: str):
         
     state = agent_investigations[inv_id]
     graph = create_investigation_graph()
-    
-    final_state = await graph.run(state)
-    agent_investigations[inv_id] = final_state
-    save_investigation(final_state)
+    try:
+        final_state = await graph.run(state)
+        agent_investigations[inv_id] = final_state
+        save_investigation(final_state)
+    except Exception as e:
+        print(f"[_run_agent_workflow ERROR] {e}")
+        import traceback
+        traceback.print_exc()
+
 
 def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
     state = agent_investigations.get(inv_id)

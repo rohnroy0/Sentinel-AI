@@ -16,19 +16,19 @@ async def plan_investigation(state: AgentState) -> AgentState:
     if scan_data and "nmap_analyzer" not in selected:
         next_tool = "nmap_analyzer"
         planned_action = "Parse scan output to discover active hosts and open ports."
-    elif state.get("discovered_hosts") and "vulnerability_lookup" not in selected:
+    elif "nmap_analyzer" in selected and "vulnerability_lookup" not in selected:
         next_tool = "vulnerability_lookup"
         planned_action = "Execute hybrid CVE lookup on discovered services and software versions."
-    elif state.get("vulnerabilities") and "risk_analyzer" not in selected:
+    elif "vulnerability_lookup" in selected and "risk_analyzer" not in selected:
         next_tool = "risk_analyzer"
         planned_action = "Calculate network security risk score."
-    elif state.get("vulnerabilities") and "attack_graph_builder" not in selected:
+    elif "vulnerability_lookup" in selected and "attack_graph_builder" not in selected:
         next_tool = "attack_graph_builder"
         planned_action = "Build attack graph and correlate potential exploit paths."
-    elif state.get("vulnerabilities") and "threat_intelligence" not in selected:
+    elif "vulnerability_lookup" in selected and "threat_intelligence" not in selected:
         next_tool = "threat_intelligence"
         planned_action = "Map findings to MITRE ATT&CK techniques and tactics."
-    elif state.get("tool_results", {}).get("risk_analyzer") and "report_generator" not in selected:
+    elif "risk_analyzer" in selected and "report_generator" not in selected:
         next_tool = "report_generator"
         planned_action = "Generate comprehensive final security intelligence report."
 

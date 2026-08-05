@@ -11,7 +11,7 @@ class InvestigationGraph:
     User Goal -> Planner Node -> Tool Execution Nodes -> Reasoning Engine -> Memory System -> Final Security Report
     """
     async def run(self, initial_state: AgentState) -> AgentState:
-        state = dict(initial_state)
+        state = initial_state
         
         # 1. Loop Planner & Tools until all required steps complete
         max_iterations = 6

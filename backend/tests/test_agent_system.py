@@ -50,7 +50,7 @@ PORT     STATE SERVICE VERSION
     print(f"[OK] Started Investigation ID: {inv_id} for user {TEST_USER_A}")
 
     # Wait for workflow completion
-    for _ in range(20):
+    for _ in range(50):
         await asyncio.sleep(0.5)
         status = get_agent_status(inv_id)
         if status and status.get("is_complete"):
