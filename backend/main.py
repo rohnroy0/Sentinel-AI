@@ -39,10 +39,23 @@ BUILD_VERSION = "2026.08.01"
 
 app = FastAPI(title="Sentinel Investigation API", version=SENTINEL_VERSION)
 
-# Configure CORS for React frontend
+# Configure CORS for React frontend (Environment-based + local dev fallbacks)
+def get_allowed_origins():
+    origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ]
+    if config.CORS_ORIGINS:
+        env_origins = [o.strip() for o in config.CORS_ORIGINS.split(",") if o.strip()]
+        for origin in env_origins:
+            if origin not in origins:
+                origins.append(origin)
+    return origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,11 +114,16 @@ class InvestigationState:
 @app.get("/health", response_model=HealthResponse)
 @app.get("/api/health", response_model=HealthResponse)
 async def health():
+    from database.repository import db_repository
+    db_health = db_repository.health_check()
+    env_mode = os.getenv("ENV", os.getenv("NODE_ENV", "production" if config.AUTH_MODE == "supabase" else "development"))
     return HealthResponse(
         status="ok",
         version=SENTINEL_VERSION,
         db_engine=config.DB_ENGINE,
-        auth_mode=config.AUTH_MODE
+        db_status=db_health,
+        auth_mode=config.AUTH_MODE,
+        environment_mode=env_mode
     )
 
 @app.get("/api/info", response_model=InfoResponse)
@@ -716,7 +734,6 @@ async def check_agent_status(investigation_id: str, user_id: str = Depends(get_c
         raise HTTPException(status_code=404, detail='Investigation not found')
     if status.get('user_id') and status.get('user_id') != user_id:
         raise HTTPException(status_code=403, detail='Access denied')
-        raise HTTPException(status_code=404, detail="Investigation not found")
     return status
 
 
