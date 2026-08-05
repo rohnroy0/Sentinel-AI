@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getRiskDashboard, getFindings, getInvestigationStatus } from '../api/investigationService';
+import { getRiskDashboard, getFindings, getInvestigationStatus, getAllInvestigations } from '../api/investigationService';
 import EmptyState from '../components/EmptyState';
 import {
   ShieldAlert, Activity, ArrowRight, FileText, GitBranch,
@@ -11,6 +11,9 @@ import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import SeverityChip from '../components/SeverityChip';
 import SectionTitle from '../components/SectionTitle';
+
+import { useInvestigation } from '../context/InvestigationContext';
+import { useAuth } from '../context/AuthContext';
 
 // Severity bar colors — reference CSS severity vars so the bars flip with theme.
 const severityColor = {
@@ -25,11 +28,33 @@ export default function DashboardOverview() {
   const [findings, setFindings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const { investigationId: invId, setInvestigationId } = useInvestigation();
+  const { user } = useAuth();
 
   useEffect(() => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
-    if (!invId) { setLoading(false); return; }
+    if (user) {
+      const fetchHistory = async () => {
+        setHistoryLoading(true);
+        try {
+          const res = await getAllInvestigations();
+          if (res && res.investigations) {
+            setHistory(res.investigations);
+          }
+        } catch (err) {
+          console.error("Failed to fetch investigation history", err);
+        } finally {
+          setHistoryLoading(false);
+        }
+      };
+      fetchHistory();
+    }
+
+    if (!invId) {
+      setLoading(false);
+      return;
+    }
 
     let intervalId = null;
 
@@ -57,17 +82,129 @@ export default function DashboardOverview() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId, user]);
 
-  // No investigation yet — empty state
-  const invId = (() => {
-    let id = localStorage.getItem('inv_id');
-    if (id === 'undefined' || id === 'null') id = null;
-    return id;
-  })();
+  if (!invId || error) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto py-8">
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--sidebar)] border border-[var(--sidebar-active)] flex items-center justify-center mx-auto mb-6">
+            <ShieldAlert className="w-8 h-8 text-[var(--brand)]" />
+          </div>
+          <h1 className="text-3xl font-extrabold text-[var(--text)] mb-4">Welcome to Sentinel-AI</h1>
+          <p className="text-[var(--text-muted)] text-lg">
+            An autonomous AI-powered security investigation platform that analyzes network scans, identifies vulnerabilities, maps attack paths, and provides remediation guidance.
+          </p>
+          <div className="mt-8">
+            <Link
+              to="/app/upload"
+              className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm shadow-[var(--brand)]/20"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Start new investigation</span>
+            </Link>
+          </div>
+        </div>
 
-  if (!invId) {
-    return <EmptyState />;
+        <div className="mt-12 mb-6 flex items-center justify-between border-b border-[var(--border)] pb-2">
+          <h2 className="text-xl font-bold text-[var(--text)]">Your Investigations</h2>
+        </div>
+
+        {historyLoading ? (
+          <div className="py-12 flex justify-center">
+            <div className="w-8 h-8 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : history.length === 0 ? (
+          <Card className="text-center py-12">
+            <LayoutDashboard className="w-12 h-12 text-[var(--text-subtle)] mx-auto mb-3" />
+            <p className="text-[var(--text)] font-semibold">No previous investigations found</p>
+            <p className="text-[var(--text-muted)] text-sm mt-1">Start a new investigation to see it here.</p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+            {history.map((inv) => (
+              <Card key={inv.investigation_id} padding="p-0" className="overflow-hidden hover:border-[var(--brand-accent)] transition-colors cursor-pointer group" onClick={() => setInvestigationId(inv.investigation_id)}>
+                <div className="p-4 border-b border-[var(--border)] group-hover:bg-[var(--sidebar)] transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-[var(--text)] text-sm line-clamp-1 flex-1 pr-2" title={inv.user_goal || inv.scan_name || 'Investigation'}>
+                      {inv.user_goal || inv.scan_name || 'Autonomous Investigation'}
+                    </h3>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-muted)]">
+                      {new Date(inv.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block w-2 h-2 rounded-full ${inv.current_status === 'Error' ? 'bg-[var(--danger)]' : inv.current_status === 'Completed' || inv.current_status === 'Investigation Complete' ? 'bg-[var(--success)]' : 'bg-[var(--warning)] animate-pulse'}`} />
+                    <span className="text-xs text-[var(--text-muted)] font-mono">{inv.current_status || 'Unknown'}</span>
+                  </div>
+                </div>
+                <div className="px-4 py-3 bg-[var(--sidebar)]/50 flex items-center justify-between text-xs text-[var(--text-muted)]">
+                  <span>{Array.isArray(inv.vulnerabilities) ? inv.vulnerabilities.length : 0} Findings</span>
+                  <div className="flex items-center gap-1 font-semibold text-[var(--brand)] group-hover:translate-x-1 transition-transform">
+                    View <ArrowRight className="w-3 h-3" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[var(--sidebar)] flex items-center justify-center shrink-0">
+                <Activity className="w-6 h-6 text-[var(--info)]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text)] mb-1.5">Network Analysis</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                  Upload Nmap scan results to discover hosts, services, and exposed attack surfaces.
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[var(--sidebar)] flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6 text-[var(--danger)]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text)] mb-1.5">Vulnerability Intelligence</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                  Correlate detected services with CVEs using product and version-based matching.
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[var(--sidebar)] flex items-center justify-center shrink-0">
+                <GitBranch className="w-6 h-6 text-[var(--warning)]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text)] mb-1.5">MITRE Attack Mapping</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                  Generate evidence-based attacker journeys using MITRE ATT&CK techniques.
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[var(--sidebar)] flex items-center justify-center shrink-0">
+                <Target className="w-6 h-6 text-[var(--success)]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text)] mb-1.5">Security Recommendations</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                  Receive prioritized remediation actions based on detected risks.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   const totalFindings = findings.length;
@@ -83,13 +220,22 @@ export default function DashboardOverview() {
         title="Security overview"
         description={`Investigation ${invId?.slice(0, 8)}…${invId?.slice(-6)} · Pipeline complete.`}
       >
-        <Link
-          to="/app/upload"
-          className="inline-flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)] px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New investigation</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setInvestigationId(null)}
+            className="inline-flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)] px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span>All Investigations</span>
+          </button>
+          <Link
+            to="/app/upload"
+            className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New investigation</span>
+          </Link>
+        </div>
       </PageHeader>
 
       {/* Stats row */}
@@ -190,7 +336,7 @@ export default function DashboardOverview() {
               ))}
             </div>
           ) : findings.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">No findings detected.</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">No security findings detected.</p>
           ) : (
             <div className="space-y-2">
               {findings.slice(0, 3).map((f) => (

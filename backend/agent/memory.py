@@ -1,13 +1,22 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from database.models import get_all_investigations, get_investigation_by_id
 
-def compare_investigations(current_inv_id: str) -> Dict[str, Any]:
+def compare_investigations(current_inv_id: str, user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Compares the current investigation against previous historical scans to detect:
     - Fixed/closed ports (Security Improvements)
     - New exposed ports (Security Regressions)
+    Scoped strictly to the specified user_id for multi-tenant isolation.
     """
-    all_invs = get_all_investigations()
+    if not user_id:
+        return {
+            "has_previous": False,
+            "improvements": [],
+            "regressions": [],
+            "summary": "Baseline security profile created. User context required for memory comparison."
+        }
+
+    all_invs = get_all_investigations(user_id=user_id)
     if len(all_invs) < 2:
         return {
             "has_previous": False,
@@ -16,14 +25,15 @@ def compare_investigations(current_inv_id: str) -> Dict[str, Any]:
             "summary": "Baseline security profile created. No previous investigation available."
         }
         
-    current = get_investigation_by_id(current_inv_id)
+    current = get_investigation_by_id(current_inv_id, user_id=user_id)
     # Find the most recent previous investigation (excluding current)
     prev = None
     if current:
         for inv in all_invs:
-            if inv["investigation_id"] != current_inv_id and inv["user_goal"] == current.get("user_goal"):
-                prev = get_investigation_by_id(inv["investigation_id"])
-                break
+            if inv["investigation_id"] != current_inv_id:
+                prev = get_investigation_by_id(inv["investigation_id"], user_id=user_id)
+                if prev:
+                    break
             
     if not current or not prev:
         return {

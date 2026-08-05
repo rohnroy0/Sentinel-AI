@@ -18,14 +18,15 @@ const SEVERITY_COLORS = {
   Info: 'var(--sev-info)',
 };
 
+import { useInvestigation } from '../context/InvestigationContext';
+
 export default function RiskDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { investigationId: invId } = useInvestigation();
 
   useEffect(() => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) { setLoading(false); return; }
 
     let intervalId = null;
@@ -55,16 +56,10 @@ export default function RiskDashboard() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId]);
 
-  const invId = (() => {
-    let id = localStorage.getItem('inv_id');
-    if (id === 'undefined' || id === 'null') id = null;
-    return id;
-  })();
-
-  if (!invId) {
-    return <EmptyState />;
+  if (!invId || error) {
+    return <EmptyState title="No risk data available" description="Upload a scan to calculate risk scores and evaluate overall security posture." />;
   }
 
   if (loading) {

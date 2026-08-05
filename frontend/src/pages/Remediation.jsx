@@ -28,8 +28,10 @@ const difficultyText = {
   Hard: 'text-[var(--danger)]',
 };
 
+import { useInvestigation } from '../context/InvestigationContext';
+
 export default function Remediation() {
-  const [invId, setInvId] = useState(null);
+  const { investigationId: invId } = useInvestigation();
   const [remediations, setRemediations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,21 +41,18 @@ export default function Remediation() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    let id = localStorage.getItem('inv_id');
-    if (id === 'undefined' || id === 'null') id = null;
-    if (!id) { setLoading(false); return; }
-    setInvId(id);
+    if (!invId) { setLoading(false); return; }
 
     let intervalId = null;
 
     const loadData = async () => {
       try {
-        const data = await getRemediation(id);
+        const data = await getRemediation(invId);
         const arr = Array.isArray(data) ? data : (data?.actions || []);
         if (arr.length > 0) setRemediations(arr);
         setError(null);
 
-        const statusData = await getInvestigationStatus(id).catch(() => null);
+        const statusData = await getInvestigationStatus(invId).catch(() => null);
         if (statusData && statusData.isComplete) {
           if (intervalId) clearInterval(intervalId);
         }
@@ -70,16 +69,14 @@ export default function Remediation() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId]);
 
   const toggleComplete = (id) => {
     setRemediations((prev) => prev.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r)));
   };
 
-  let id = localStorage.getItem('inv_id');
-  if (id === 'undefined' || id === 'null') id = null;
-  if (!id) {
-    return <EmptyState />;
+  if (!invId || error) {
+    return <EmptyState title="No active investigation" description="Upload a scan to receive prioritized remediation tasks." />;
   }
 
   if (loading) {

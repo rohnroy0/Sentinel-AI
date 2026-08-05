@@ -10,6 +10,8 @@ import SeverityChip from '../components/SeverityChip';
 import PillSearch from '../components/PillSearch';
 import { useTheme } from '../theme/useTheme';
 
+import { useInvestigation } from '../context/InvestigationContext';
+
 // Confidence chip tones — text/bg/border per High / Medium / Low.
 // Pulled from the active theme so both modes stay readable.
 const confidenceColors = {
@@ -41,129 +43,6 @@ const COVERED_SERVICES = [
   'MySQL',
 ];
 
-function NoMatchingFindingsSummary({ detectedServices }) {
-  return (
-    <Card padding="p-0">
-      <div className="p-8 border-b border-[var(--border)] bg-gradient-to-br from-[var(--warning-bg)] via-[var(--surface)] to-[var(--sidebar)]">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-xl bg-[var(--surface)] border border-[var(--warning-border)] flex items-center justify-center shrink-0">
-            <ShieldAlert className="w-7 h-7 text-[var(--warning)]" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--warning)] mb-1">No matching findings</p>
-            <h2 className="text-xl font-extrabold text-[var(--text)] mb-2">No matching security findings</h2>
-            <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-              Investigation completed — the deterministic Rule Engine evaluated the scan but found
-              no applicable rule for the services detected in this environment.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-8 space-y-8">
-        <section>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-3">Investigation summary</p>
-          <p className="text-sm text-[var(--text)] leading-relaxed">
-            The investigation pipeline parsed the uploaded scan in full and forwarded{' '}
-            <span className="font-semibold text-[var(--brand)]">
-              {detectedServices.length} detected service{detectedServices.length === 1 ? '' : 's'}
-            </span>{' '}
-            to the Rule Engine. The Knowledge Base was consulted for each candidate rule and the
-            Risk Engine produced no severity-graded findings. The current deterministic rule set
-            contains no applicable rules for the services detected in this scan.
-          </p>
-          <p className="text-sm text-[var(--text-muted)] leading-relaxed mt-3">
-            Parsing of all services continues regardless of rule coverage, so future updates to the
-            Knowledge Base will be evaluated retroactively against the services already captured in
-            this investigation.
-          </p>
-        </section>
-
-        <section>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-3 flex items-center gap-2">
-            <Server className="w-3.5 h-3.5 text-[var(--brand)]" />
-            Detected services ({detectedServices.length})
-          </p>
-          {detectedServices.length === 0 ? (
-            <div className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-6 text-center">
-              <p className="text-sm text-[var(--text-muted)]">
-                The parser extracted no open ports from the scan. The upload may have been empty or
-                in an unsupported format.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--bg)] text-[var(--text-muted)]">
-                  <tr>
-                    <th className="px-5 py-3 font-semibold">Port</th>
-                    <th className="px-5 py-3 font-semibold">Service</th>
-                    <th className="px-5 py-3 font-semibold">Version</th>
-                    <th className="px-5 py-3 font-semibold text-right">Rule</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {detectedServices.map((svc, idx) => (
-                    <tr key={idx} className="hover:bg-[var(--bg)] transition-colors">
-                      <td className="px-5 py-3 font-mono text-[var(--text)]">{svc.port}</td>
-                      <td className="px-5 py-3 text-[var(--text)]">{svc.service}</td>
-                      <td className="px-5 py-3 text-[var(--text-muted)] font-mono text-xs">{svc.version || '—'}</td>
-                      <td className="px-5 py-3 text-right">
-                        <span className="text-xs font-semibold bg-[var(--surface-2)] text-[var(--text-muted)] px-2 py-1 rounded-full border border-[var(--border)]">
-                          No rule
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
-        <section className="bg-[var(--sidebar)] border border-[var(--sidebar-active)] rounded-lg p-6">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand)] mb-3 flex items-center gap-2">
-            <BookOpen className="w-4 h-4" />
-            Recommended — extend the knowledge base
-          </p>
-          <p className="text-sm text-[var(--text)] leading-relaxed mb-4">
-            The Sentinel deterministic Rule Engine currently covers the following services. If the
-            scan you uploaded contains services outside this list, extend the Knowledge Base by
-            adding the corresponding detection logic to{' '}
-            <code className="bg-[var(--surface)] px-1.5 py-0.5 rounded text-[var(--brand)] text-xs font-mono border border-[var(--border)]">
-              backend/ai/rule_engine/rules.py
-            </code>{' '}
-            and the corresponding CWE / MITRE ATT&amp;CK context to{' '}
-            <code className="bg-[var(--surface)] px-1.5 py-0.5 rounded text-[var(--brand)] text-xs font-mono border border-[var(--border)]">
-              backend/ai/knowledge_base/kb.py
-            </code>
-            . Re-run the investigation after extending the rule set to evaluate the newly covered
-            services.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {COVERED_SERVICES.map((svc) => (
-              <span
-                key={svc}
-                className="text-xs bg-[var(--surface)] border border-[var(--sidebar-active)] text-[var(--brand)] px-2.5 py-1 rounded-full font-semibold"
-              >
-                {svc}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        <section className="flex items-start gap-3 text-xs text-[var(--text-muted)]">
-          <Database className="w-4 h-4 mt-0.5 shrink-0 text-[var(--text-subtle)]" />
-          <p className="leading-relaxed">
-            The investigation decision log retains every pipeline stage executed against this scan,
-            so an empty Findings page is itself an auditable record — not a skipped analysis.
-          </p>
-        </section>
-      </div>
-    </Card>
-  );
-}
-
 export default function Findings() {
   const [findings, setFindings] = useState([]);
   const [detectedServices, setDetectedServices] = useState([]);
@@ -171,11 +50,10 @@ export default function Findings() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const { resolved } = useTheme();
+  const { investigationId: invId } = useInvestigation();
   const confMode = resolved === 'dark' ? 'dark' : 'light';
 
   useEffect(() => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) { setLoading(false); return; }
 
     let intervalId = null;
@@ -207,7 +85,11 @@ export default function Findings() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId]);
+
+  if (!invId || error) {
+    return <EmptyState title="No security findings yet" description="Upload a network scan to allow Sentinel-AI to analyze vulnerabilities and security risks." />;
+  }
 
   if (loading) {
     return (
@@ -218,15 +100,7 @@ export default function Findings() {
     );
   }
 
-  let invId = localStorage.getItem('inv_id');
-  if (invId === 'undefined' || invId === 'null') invId = null;
-  if (!invId) {
-    return <EmptyState />;
-  }
 
-  if (error) {
-    return <div className="p-8 text-[var(--danger)]">{error}</div>;
-  }
 
   const filtered = findings.filter((f) => {
     if (!search.trim()) return true;
@@ -306,7 +180,7 @@ export default function Findings() {
         })}
 
         {findings.length === 0 && (
-          <NoMatchingFindingsSummary detectedServices={detectedServices} />
+          <EmptyState title="No security findings yet" description="Upload a network scan to allow Sentinel-AI to analyze vulnerabilities and security risks." showButton={false} />
         )}
       </div>
     </div>

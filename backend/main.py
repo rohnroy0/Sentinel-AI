@@ -1,11 +1,25 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends
+from auth import get_current_user
 from pydantic import BaseModel
 import uuid
 import asyncio
 import re
 import time
 from datetime import datetime
+
+from config import config
+from utils.logger import logger
+from models.schemas import (
+    HealthResponse, InfoResponse, UploadRequest, UploadResponse,
+    AgentInvestigateRequest, AgentInvestigateResponse,
+    AskSentinelRequest, AskSentinelResponse
+)
 
 # Import AI pipeline modules
 from ai.parser.nmap_parser import parse_nmap_text
@@ -18,7 +32,7 @@ from ai.llm.analyzer import analyze_results
 from ai.report_generator.generator import generate_report
 from ai.investigation_graph.builder import build_investigation_graph
 from agent.agent_controller import start_autonomous_investigation, get_agent_status
-from database.models import save_deterministic_investigation, get_investigation_by_id
+from database.models import save_deterministic_investigation, get_investigation_by_id, get_all_investigations
 
 SENTINEL_VERSION = "1.0.0"
 BUILD_VERSION = "2026.08.01"
@@ -28,7 +42,7 @@ app = FastAPI(title="Sentinel Investigation API", version=SENTINEL_VERSION)
 # Configure CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,31 +98,39 @@ class InvestigationState:
 
 # ─── Static Endpoints ──────────────────────────────────────────────────────
 
-@app.get("/api/health")
+@app.get("/health", response_model=HealthResponse)
+@app.get("/api/health", response_model=HealthResponse)
 async def health():
-    return {"status": "ok", "version": SENTINEL_VERSION}
+    return HealthResponse(
+        status="ok",
+        version=SENTINEL_VERSION,
+        db_engine=config.DB_ENGINE,
+        auth_mode=config.AUTH_MODE
+    )
 
-@app.get("/api/info")
+@app.get("/api/info", response_model=InfoResponse)
 async def info():
-    return {
-        "name": "Sentinel Investigation API",
-        "version": SENTINEL_VERSION,
-        "build": BUILD_VERSION,
-        "description": "Autonomous AI security misconfiguration investigation engine."
-    }
+    return InfoResponse(
+        name="Sentinel Investigation API",
+        version=SENTINEL_VERSION,
+        build=BUILD_VERSION,
+        description="Autonomous AI security misconfiguration investigation engine."
+    )
 
 
 # ─── Upload ────────────────────────────────────────────────────────────────
 
-@app.post("/api/upload")
-async def upload_scan(req: UploadRequest):
-    inv = InvestigationState(req.content)
+@app.post("/api/upload", response_model=UploadResponse)
+async def upload_scan(req: UploadRequest, user_id: str = Depends(get_current_user)):
+    req_content = req.content
+    inv = InvestigationState(req_content)
+    inv.user_id = user_id
     investigations[inv.id] = inv
     try:
         save_deterministic_investigation(inv)
     except Exception as e:
-        print(f"[WARN] Initial save failed: {e}")
-    return {"investigationId": inv.id}
+        logger.warning(f"Initial save failed for investigation {inv.id}: {e}")
+    return UploadResponse(investigationId=inv.id)
 
 
 # ─── Pipeline ─────────────────────────────────────────────────────────────
@@ -123,95 +145,7 @@ def build_risk_dashboard(risk_findings, chain_data, detected_services=None):
     )
 
 
-def build_remediation(risk_findings):
-    """Build prioritized, enriched remediation steps."""
-    sev_order = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Info": 0}
-    difficulty_map = {
-        "RULE_001": "Easy",
-        "RULE_002": "Medium",
-        "RULE_003": "Easy",
-        "RULE_004": "Easy",
-        "RULE_005": "Medium",
-        "RULE_006": "Medium",
-        "RULE_007": "Medium",
-        "RULE_008": "Easy",
-        "RULE_009": "Easy",
-        "RULE_010": "Easy",
-        "RULE_011": "Medium",
-        "RULE_012": "Easy",
-        "RULE_013": "Easy",
-        "RULE_014": "Medium",
-        "RULE_015": "Hard",
-        "RULE_016": "Medium",
-        "RULE_017": "Easy",
-        "RULE_018": "Easy",
-        "RULE_019": "Easy",
-    }
-    why_map = {
-        "RULE_001": "Allows any attacker with valid credentials to gain full root access to the system via the network, bypassing all privilege escalation steps.",
-        "RULE_002": "CVE-2021-41773 permits unauthenticated remote path traversal and Remote Code Execution. This is a known and actively exploited vulnerability.",
-        "RULE_003": "TLS 1.0 supports cipher suites with known weaknesses susceptible to BEAST and POODLE attacks, enabling traffic decryption.",
-        "RULE_004": "Anonymous FTP access allows any unauthenticated user to read and potentially write files on the server.",
-        "RULE_005": "Direct exposure of Windows Server services (RDP, SMB, WinRM, RPC) on the public internet is a frequent initial-access vector for ransomware operators.",
-        "RULE_006": "An exposed Active Directory LDAP endpoint allows password-spraying, AS-REP roasting, and credential enumeration against an entire domain.",
-        "RULE_007": "Microsoft IIS web servers run ASP.NET applications that are frequently targeted by deserialization and authentication bypass exploits.",
-        "RULE_008": "Publicly reachable SMB is a top ransomware initial-access vector. EternalBlue (MS17-010) and similar exploits are still seen in the wild.",
-        "RULE_009": "LDAP endpoints without TLS transmit bind credentials in clear text and are vulnerable to relay and downgrade attacks.",
-        "RULE_010": "Exposed RDP without Network Level Authentication is one of the highest-volume brute-force and ransomware staging targets on the internet.",
-        "RULE_011": "Unencrypted or publicly reachable WinRM allows lateral movement and full remote command execution on the Windows host.",
-        "RULE_012": "An unauthenticated Jenkins instance can leak credentials, source code, and provide script-console access leading to remote code execution.",
-        "RULE_013": "Redis without a password is trivially writable. Attackers pivot from public Redis instances to full host takeover via SSH key injection.",
-        "RULE_014": "An unauthenticated Docker daemon TCP socket (port 2375) gives anyone on the network full container control — equivalent to root on the host.",
-        "RULE_015": "An exposed Kubernetes API server or kubelet can be used to deploy malicious containers, exfiltrate secrets, or pivot to the underlying node.",
-        "RULE_016": "Publicly reachable Elasticsearch without authentication has been the source of multi-billion-record data leaks in recent years.",
-        "RULE_017": "MongoDB instances without authentication have historically been wiped or held for ransom by automated internet scanners.",
-        "RULE_018": "Public PostgreSQL exposes unencrypted credentials and grants read/write access to application databases.",
-        "RULE_019": "Public MySQL allows credential brute force and, with weak passwords, full read/write access to application data.",
-    }
-    improvement_map = {
-        "RULE_001": "Eliminates the most direct path to full server compromise via remote login.",
-        "RULE_002": "Patches a critical zero-day class vulnerability and prevents remote code execution.",
-        "RULE_003": "Enforces modern encryption standards and removes susceptibility to known TLS attacks.",
-        "RULE_004": "Closes an open door for data exfiltration or unauthorized file uploads.",
-        "RULE_005": "Removes a primary ransomware initial-access vector by isolating Windows management surfaces.",
-        "RULE_006": "Reduces domain credential attack surface and enforces encrypted LDAP binds.",
-        "RULE_007": "Limits exposure to publicly known IIS CVEs and enforces request filtering.",
-        "RULE_008": "Blocks a primary lateral-movement and ransomware-staging vector.",
-        "RULE_009": "Prevents cleartext credential disclosure and LDAP relay attacks.",
-        "RULE_010": "Reduces the largest single source of remote brute-force compromises.",
-        "RULE_011": "Removes an unencrypted remote command-execution path into the Windows host.",
-        "RULE_012": "Prevents unauthenticated access to the CI/CD control plane and build secrets.",
-        "RULE_013": "Eliminates the SSH-key pivot vector commonly used to take over Redis hosts.",
-        "RULE_014": "Removes a single-step path from the network to root on the container host.",
-        "RULE_015": "Prevents cluster takeover and secret exfiltration from the API server.",
-        "RULE_016": "Closes the largest single category of mass-data leaks from search clusters.",
-        "RULE_017": "Removes the unauthenticated-data-loss vector used by ransomware crews.",
-        "RULE_018": "Forces authenticated, encrypted database access and shrinks the attack surface.",
-        "RULE_019": "Removes anonymous database brute force from the public internet.",
-    }
-
-    sorted_findings = sorted(risk_findings, key=lambda x: sev_order.get(x.get("severity", "Info"), 0), reverse=True)
-
-    remediation = []
-    for idx, f in enumerate(sorted_findings):
-        rule_id = f.get("rule_id", "")
-        context = f.get("context", {})
-        remediation.append({
-            "id": f.get("id", str(uuid.uuid4())),
-            "priority": idx + 1,
-            "title": f.get("title", ""),
-            "severity": f.get("severity", "Info"),
-            "confidence": f.get("confidence", "Medium"),
-            "why": why_map.get(rule_id, "This misconfiguration increases the attack surface of the system."),
-            "fix": f.get("remediation", "Apply security hardening guidelines."),
-            "improvement": improvement_map.get(rule_id, "Reduces overall risk exposure."),
-            "mitre": context.get("mitre_technique", "N/A"),
-            "cwe": context.get("cwe", "N/A"),
-            "difficulty": difficulty_map.get(rule_id, "Medium"),
-            "completed": False,
-        })
-
-    return remediation
+from services.remediation import build_remediation
 
 
 async def run_investigation_pipeline(inv: InvestigationState):
@@ -477,7 +411,7 @@ async def run_investigation_pipeline(inv: InvestigationState):
         try:
             save_deterministic_investigation(inv)
         except Exception as persist_err:
-            print(f"[WARN] Failed to persist investigation {inv.id}: {persist_err}")
+            logger.warning(f"Failed to persist investigation {inv.id}: {persist_err}")
 
     except Exception as e:
         inv.status = f"Error: {str(e)}"
@@ -562,20 +496,26 @@ def build_investigation_summary(*, inv, detected_services, rule_findings,
 # ─── API Routes ────────────────────────────────────────────────────────────
 
 @app.post("/api/investigation/{inv_id}/start")
-async def start_investigation(inv_id: str, background_tasks: BackgroundTasks):
+async def start_investigation(inv_id: str, background_tasks: BackgroundTasks, user_id: str = Depends(get_current_user)):
     if inv_id not in investigations:
         raise HTTPException(status_code=404, detail="Investigation not found")
     inv = investigations[inv_id]
+    if getattr(inv, 'user_id', None) and inv.user_id != user_id:
+        raise HTTPException(status_code=403, detail='Access denied')
     background_tasks.add_task(run_investigation_pipeline, inv)
     return {"status": "started"}
 
 
 @app.get("/api/investigation/{inv_id}/status")
-async def get_status(inv_id: str):
+async def get_status(inv_id: str, user_id: str = Depends(get_current_user)):
     if inv_id not in investigations:
         # Try DB restoration
-        db_state = get_investigation_by_id(inv_id)
+        db_state = get_investigation_by_id(inv_id, user_id)
         if db_state:
+            if db_state.get('user_id') and db_state.get('user_id') != user_id:
+                raise HTTPException(status_code=403, detail='Access denied')
+            if db_state.get('user_id') and db_state.get('user_id') != user_id:
+                raise HTTPException(status_code=403, detail='Access denied')
             status = db_state.get("current_status", "Unknown")
             return {
                 "status": status,
@@ -584,6 +524,8 @@ async def get_status(inv_id: str):
             }
         raise HTTPException(status_code=404, detail="Investigation not found")
     inv = investigations[inv_id]
+    if getattr(inv, 'user_id', None) and inv.user_id != user_id:
+        raise HTTPException(status_code=403, detail='Access denied')
     return {
         "status": inv.status,
         "progress": inv.progress,
@@ -592,9 +534,11 @@ async def get_status(inv_id: str):
 
 
 @app.get("/api/investigation/{inv_id}/{resource}")
-async def get_resource(inv_id: str, resource: str):
+async def get_resource(inv_id: str, resource: str, user_id: str = Depends(get_current_user)):
     # 1. Check if this is an autonomous agent investigation
     agent_status = get_agent_status(inv_id)
+    if agent_status and agent_status.get('user_id') and agent_status.get('user_id') != user_id:
+        raise HTTPException(status_code=403, detail='Access denied')
     if agent_status:
         # Some resources need to be mapped or adapted
         attack_chains_data = agent_status.get("attack_chains", [])
@@ -630,8 +574,12 @@ async def get_resource(inv_id: str, resource: str):
     # 2. Check if this is an old deterministic pipeline investigation
     if inv_id not in investigations:
         # Try to restore from SQLite (survives restarts)
-        db_state = get_investigation_by_id(inv_id)
+        db_state = get_investigation_by_id(inv_id, user_id)
         if db_state:
+            if db_state.get('user_id') and db_state.get('user_id') != user_id:
+                raise HTTPException(status_code=403, detail='Access denied')
+            if db_state.get('user_id') and db_state.get('user_id') != user_id:
+                raise HTTPException(status_code=403, detail='Access denied')
             class _RestoredInv:
                 pass
             inv = _RestoredInv()
@@ -650,6 +598,8 @@ async def get_resource(inv_id: str, resource: str):
             return {"status": "empty", "message": "No active investigation", "data": None}
 
     inv = investigations[inv_id]
+    if getattr(inv, 'user_id', None) and inv.user_id != user_id:
+        raise HTTPException(status_code=403, detail='Access denied')
 
     # Build a live summary from whatever data the inv object currently has.
     # This means the summary card is populated as early as possible during polling.
@@ -744,17 +694,28 @@ class AgentInvestigateRequest(BaseModel):
     scan_data: str = None
 
 @app.post("/api/agent/investigate")
-async def start_agent_investigation(req: AgentInvestigateRequest):
+async def start_agent_investigation(req: AgentInvestigateRequest, user_id: str = Depends(get_current_user)):
     """Starts a new autonomous investigation."""
-    inv_id = await start_autonomous_investigation(req.goal, req.scan_data)
+    inv_id = await start_autonomous_investigation(req.goal, req.scan_data, user_id=user_id)
     return {"investigation_id": inv_id, "status": "started"}
 
 
+@app.get("/api/agent/investigations")
+async def list_agent_investigations(user_id: str = Depends(get_current_user)):
+    """Lists all investigations for the user."""
+    logger.info(f"Listing investigations for user: {user_id}")
+    results = get_all_investigations(user_id)
+    return {"investigations": results}
+
+
 @app.get("/api/agent/status/{investigation_id}")
-async def check_agent_status(investigation_id: str):
+async def check_agent_status(investigation_id: str, user_id: str = Depends(get_current_user)):
     """Returns the current agent step, findings, and final report status."""
     status = get_agent_status(investigation_id)
     if not status:
+        raise HTTPException(status_code=404, detail='Investigation not found')
+    if status.get('user_id') and status.get('user_id') != user_id:
+        raise HTTPException(status_code=403, detail='Access denied')
         raise HTTPException(status_code=404, detail="Investigation not found")
     return status
 
@@ -764,7 +725,7 @@ class AskSentinelRequest(BaseModel):
     question: str
 
 @app.post("/api/agent/ask")
-async def ask_sentinel_endpoint(req: AskSentinelRequest):
+async def ask_sentinel_endpoint(req: AskSentinelRequest, user_id: str = Depends(get_current_user)):
     """Ask Sentinel Q&A endpoint for reasoning over investigation findings."""
     from agent.ask_sentinel import ask_sentinel_question
     ans = await ask_sentinel_question(req.investigation_id, req.question)

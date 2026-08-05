@@ -19,7 +19,8 @@ async def process_memory(state: AgentState) -> AgentState:
         pass
         
     # Compare with history
-    memory_diff = compare_investigations(inv_id)
+    user_id = state.get("user_id")
+    memory_diff = compare_investigations(inv_id, user_id=user_id)
     state["memory_insights"] = memory_diff
     
     if memory_diff.get("has_previous"):

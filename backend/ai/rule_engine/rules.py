@@ -118,11 +118,6 @@ def apply_rules(parsed_data):
         if port_num == "3306" or "mysql" in service:
             findings.append(create_finding("RULE_019", "MySQL Database Exposed", port, ["MySQL listening publicly"], "Medium"))
 
-    if not findings:
-        detected_services_str = [f"{p.get('service', 'unknown')} on port {p.get('port', 'unknown')}" for p in detected_services]
-        dummy_port = {"host": "Unknown Host", "port": "N/A", "service": "N/A", "version": ""}
-        if detected_services:
-            dummy_port["host"] = detected_services[0].get("host", "Unknown Host")
-        findings.append(create_finding("RULE_NO_MATCH", "No Matching Security Findings", dummy_port, ["Detected services: " + ", ".join(detected_services_str)], "High"))
+
 
     return findings, detected_services

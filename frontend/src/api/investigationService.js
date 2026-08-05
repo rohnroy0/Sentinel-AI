@@ -19,6 +19,10 @@ export async function getInvestigationStatus(investigationId) {
   return fetchApi(`/investigation/${investigationId}/status`);
 }
 
+export async function getAllInvestigations() {
+  return fetchApi('/agent/investigations');
+}
+
 // ─── Investigation Resources ───────────────────────────────────────────────
 
 export async function getFindings(investigationId) {
