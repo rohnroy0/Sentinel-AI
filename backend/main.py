@@ -526,29 +526,61 @@ async def start_investigation(inv_id: str, background_tasks: BackgroundTasks, us
 
 @app.get("/api/investigation/{inv_id}/status")
 async def get_status(inv_id: str, user_id: str = Depends(get_current_user)):
-    if inv_id not in investigations:
-        # Try DB restoration
-        db_state = get_investigation_by_id(inv_id, user_id)
-        if db_state:
-            if db_state.get('user_id') and db_state.get('user_id') != user_id:
-                raise HTTPException(status_code=403, detail='Access denied')
-            if db_state.get('user_id') and db_state.get('user_id') != user_id:
-                raise HTTPException(status_code=403, detail='Access denied')
-            status = db_state.get("current_status", "Unknown")
-            return {
-                "status": status,
-                "progress": 100 if status == "Investigation Complete" else 0,
-                "isComplete": status in ("Investigation Complete", "Error")
-            }
-        raise HTTPException(status_code=404, detail="Investigation not found")
-    inv = investigations[inv_id]
-    if getattr(inv, 'user_id', None) and inv.user_id != user_id:
-        raise HTTPException(status_code=403, detail='Access denied')
-    return {
-        "status": inv.status,
-        "progress": inv.progress,
-        "isComplete": inv.is_complete
-    }
+    # 1. Check Autonomous Agent state (in-memory runtime or DB hydrated)
+    agent_status = get_agent_status(inv_id)
+    if agent_status:
+        if agent_status.get('user_id') and agent_status.get('user_id') != user_id:
+            raise HTTPException(status_code=403, detail='Access denied')
+        current_st = agent_status.get("current_status") or agent_status.get("status") or "In Progress"
+        is_comp = agent_status.get("is_complete", False) or current_st in ("Investigation Complete", "Completed", "Error")
+        return {
+            "status": current_st,
+            "progress": 100 if is_comp else agent_status.get("progress", 50),
+            "isComplete": is_comp,
+            "investigation_id": inv_id,
+            "user_id": agent_status.get("user_id")
+        }
+
+    # 2. Check Deterministic In-Memory State
+    if inv_id in investigations:
+        inv = investigations[inv_id]
+        if getattr(inv, 'user_id', None) and inv.user_id != user_id:
+            raise HTTPException(status_code=403, detail='Access denied')
+        return {
+            "status": inv.status,
+            "progress": inv.progress,
+            "isComplete": inv.is_complete,
+            "investigation_id": inv_id,
+            "user_id": getattr(inv, 'user_id', None)
+        }
+
+    # 3. Check Persistent Database State
+    db_state = get_investigation_by_id(inv_id, user_id)
+    if db_state:
+        if db_state.get('user_id') and db_state.get('user_id') != user_id:
+            raise HTTPException(status_code=403, detail='Access denied')
+        current_st = db_state.get("current_status") or db_state.get("status") or "Completed"
+        is_comp = current_st in ("Investigation Complete", "Completed", "Error")
+        return {
+            "status": current_st,
+            "progress": 100 if is_comp else 50,
+            "isComplete": is_comp,
+            "investigation_id": inv_id,
+            "user_id": db_state.get("user_id")
+        }
+
+    raise HTTPException(status_code=404, detail="Investigation not found")
+
+
+@app.get("/api/investigation/{inv_id}/findings")
+async def get_findings_endpoint(inv_id: str, user_id: str = Depends(get_current_user)):
+    return await get_resource(inv_id, "findings", user_id=user_id)
+
+
+@app.get("/api/investigation/{inv_id}/risk-dashboard")
+@app.get("/api/investigation/{inv_id}/risk")
+async def get_risk_dashboard_endpoint(inv_id: str, user_id: str = Depends(get_current_user)):
+    return await get_resource(inv_id, "risk-dashboard", user_id=user_id)
 
 
 @app.get("/api/investigation/{inv_id}/{resource}")
@@ -596,8 +628,7 @@ async def get_resource(inv_id: str, resource: str, user_id: str = Depends(get_cu
         if db_state:
             if db_state.get('user_id') and db_state.get('user_id') != user_id:
                 raise HTTPException(status_code=403, detail='Access denied')
-            if db_state.get('user_id') and db_state.get('user_id') != user_id:
-                raise HTTPException(status_code=403, detail='Access denied')
+
             class _RestoredInv:
                 pass
             inv = _RestoredInv()
