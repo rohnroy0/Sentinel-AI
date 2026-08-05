@@ -8,7 +8,7 @@ from database.models import save_investigation, get_investigation_by_id
 # In-memory session runtime cache
 agent_investigations: Dict[str, AgentState] = {}
 
-async def start_autonomous_investigation(goal: str, scan_data: str = None) -> str:
+async def start_autonomous_investigation(goal: str, scan_data: str = None, user_id: str = None) -> str:
     """
     Responsibilities:
     - Receive investigation requests
@@ -30,7 +30,8 @@ async def start_autonomous_investigation(goal: str, scan_data: str = None) -> st
         "explained_findings": [],
         "memory_insights": {},
         "final_report": {},
-        "current_status": "Initializing Agent Workflow..."
+        "current_status": "Initializing Agent Workflow...",
+        "user_id": user_id
     }
     
     agent_investigations[inv_id] = state
@@ -136,22 +137,10 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
             chain_data=first_chain
         )
 
-    # 4. Extract or build remediation
     remediation = state.get("remediation", [])
-    if not remediation:
-        remediation = []
-        for i, f in enumerate(findings):
-            remediation.append({
-                "id": f.get("id", f"finding-{i}"),
-                "priority": i + 1,
-                "rule_id": f.get("rule_id", f"RULE_00{i+1}"),
-                "title": f"Mitigate {f.get('title', 'Security Finding')}",
-                "action": f.get("remediation", f"Upgrade software and restrict port {f.get('port', '80')} exposure."),
-                "severity": f.get("severity", "High"),
-                "estimated_difficulty": "Medium",
-                "why": f.get("why", "Eliminate security exposure and potential exploit vectors."),
-                "improvement": f"Secures host {f.get('host', 'target')} against unauthorized compromise."
-            })
+    if not remediation and findings:
+        from services.remediation import build_remediation
+        remediation = build_remediation(findings)
 
     # 5. Extract or build complete investigation graph across all entities
     from ai.investigation_graph.builder import build_investigation_graph
@@ -195,136 +184,27 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
     risk_score = risk_dash.get("overallScore", 75)
     inv_id_str = str(state.get("investigation_id", "inv"))
 
-    services_evidence = []
-    for h in discovered_hosts:
-        ip = h.get("ip") or h.get("host") or host_name
-        ports = h.get("ports", [])
-        if ports:
-            for p in ports:
-                services_evidence.append(f"Discovered Port {p.get('port')}/{p.get('service', 'tcp')} on {ip}")
-        else:
-            services_evidence.append(f"Active host identified at {ip}")
-    if not services_evidence:
-        for f in findings:
-            services_evidence.append(f"Active service: {f.get('service')} on {f.get('host')}:{f.get('port')}")
-
-    decision_log = [
-        {
-            "id": f"dec-parser-{inv_id_str[:8]}",
-            "stage": "Parser",
-            "module": "Parser",
-            "title": "Nmap Network Scan Parsing & Host Topology Discovery",
-            "decision": "Parsed raw network scan telemetry and extracted active host profiles",
-            "why": "Raw Nmap scan output was ingested to identify live network assets, open listening ports, protocols, and active software version banners.",
-            "evidence": services_evidence if services_evidence else [f"Discovered {len(discovered_hosts)} active host(s)"],
-            "outcome": f"Identified {len(discovered_hosts) or 1} active host(s) and {max(len(services_evidence), len(findings), 1)} open service port(s).",
-            "next_step": "Forward detected services to Vulnerability Lookup Tool for CVE database matching",
-            "confidence": "High",
-            "status": "Completed",
-            "timestamp": state.get("created_at") or "2026-08-04T20:00:00Z",
-            "processing_ms": 124
-        },
-        {
-            "id": f"dec-rules-{inv_id_str[:8]}",
-            "stage": "Rule Engine",
-            "module": "Rule Engine",
-            "title": "Vulnerability Database Correlation & Signature Evaluation",
-            "decision": "Cross-referenced detected software signatures against offline CVE vulnerability repository and NVD database",
-            "why": "Identified service versions and protocol banners were evaluated against vulnerability signatures to detect known remote code execution, exposure, and privilege escalation vectors.",
-            "evidence": [
-                f"{f.get('service', 'Service')} on {f.get('host')}:{f.get('port', '80')} -> {f.get('cve_id', 'CVE-Identified')} ({f.get('title')})"
-                for f in findings
-            ] if findings else [f"Evaluated {max(len(findings) * 3, 10)} rule signatures"],
-            "outcome": f"Correlated {len(findings)} verified security vulnerability signature(s) across target assets.",
-            "next_step": "Pass identified vulnerabilities to Risk Engine for CVSS threat calculation",
-            "confidence": "High",
-            "status": "Completed",
-            "timestamp": state.get("created_at") or "2026-08-04T20:00:02Z",
-            "processing_ms": 182
-        },
-        {
-            "id": f"dec-risk-{inv_id_str[:8]}",
-            "stage": "Risk Engine",
-            "module": "Risk Engine",
-            "title": "Security Risk Scoring & Exploitability Analysis",
-            "decision": f"Calculated overall asset risk as {overall_risk} (Score: {risk_score}/100)",
-            "why": "Vulnerability severity, network accessibility, CVSS baseline metrics, and host criticality were aggregated to quantify exploit impact.",
-            "evidence": [
-                f"Overall Risk Classification: {overall_risk} ({risk_score}/100)",
-                f"Critical Findings: {sev_counts['Critical']}",
-                f"High Findings: {sev_counts['High']}",
-                f"Medium Findings: {sev_counts['Medium']}",
-                f"Low / Info Findings: {sev_counts['Low'] + sev_counts['Info']}"
-            ],
-            "outcome": f"Determined network risk posture with {sev_counts['Critical']} Critical and {sev_counts['High']} High severity threat(s).",
-            "next_step": "Transmit risk findings to Threat Intelligence and Attack Chain Builder",
-            "confidence": "High",
-            "status": "Completed",
-            "timestamp": state.get("created_at") or "2026-08-04T20:00:03Z",
-            "processing_ms": 95
-        },
-        {
-            "id": f"dec-mitre-{inv_id_str[:8]}",
-            "stage": "Correlation Engine",
-            "module": "Correlation Engine",
-            "title": "MITRE ATT&CK Matrix Alignment & Threat Intelligence Correlation",
-            "decision": "Mapped discovered attack surfaces and CVEs to standard MITRE ATT&CK adversary tactics",
-            "why": "Correlated vulnerability indicators with MITRE Enterprise framework to enable threat modeling and SOC hunting.",
-            "evidence": [
-                f"{f.get('service', 'Service')} ({f.get('host')}:{f.get('port')}) -> {f.get('mitre', 'T1190 - Exploit Public-Facing Application')}"
-                for f in findings
-            ] if findings else ["Mapped to MITRE ATT&CK T1190, T1021.004"],
-            "outcome": f"Mapped {len(mitre_set) or len(findings)} unique MITRE ATT&CK adversary technique(s).",
-            "next_step": "Construct multi-stage exploit pathways in Attack Chain Builder",
-            "confidence": "High",
-            "status": "Completed",
-            "timestamp": state.get("created_at") or "2026-08-04T20:00:04Z",
-            "processing_ms": 118
-        },
-        {
-            "id": f"dec-chains-{inv_id_str[:8]}",
-            "stage": "Attack Chain Builder",
-            "module": "Attack Chain Builder",
-            "title": "Multi-Stage Attack Path & Topology Graph Synthesis",
-            "decision": "Constructed end-to-end exploit chains and graph relationship topology",
-            "why": "Modeled attacker progression from external initial access through vulnerable services to lateral host compromise.",
-            "evidence": [
-                f"Most Dangerous Path: {risk_dash.get('mostDangerousPath', 'Internet -> Exploit Service -> Host Access')}",
-                f"Attack Stages Correlated: {max(chain_stages, 1)}",
-                f"Investigation Graph Nodes: {graph_nodes} nodes, {graph_edges} edges"
-            ],
-            "outcome": f"Synthesized {max(len(attack_chains), 1)} attack chain(s) containing {max(chain_stages, 1)} exploit stage(s).",
-            "next_step": "Generate explainable insights, root cause analysis, and remediation strategies",
-            "confidence": "High",
-            "status": "Completed",
-            "timestamp": state.get("created_at") or "2026-08-04T20:00:05Z",
-            "processing_ms": 156
-        },
-        {
-            "id": f"dec-report-{inv_id_str[:8]}",
-            "stage": "Report Generator",
-            "module": "Report Generator",
-            "title": "Explainable SOC Insights & Prioritized Remediation Synthesis",
-            "decision": "Generated 5-point explainable intelligence breakdowns and prioritized mitigation playbooks",
-            "why": "Compiled root causes, verified evidence items, business impacts, and tactical hardening steps for security analysts.",
-            "evidence": [
-                f"Explainable Findings: {len(findings)}",
-                f"Remediation Guidance Actions: {len(remediation)}",
-                f"Executive Summary compiled for host {host_name}"
-            ],
-            "outcome": f"Final security intelligence payload assembled with {len(remediation)} prioritized remediation action(s).",
-            "next_step": "Render interactive telemetry on Sentinel-AI Investigation Console",
-            "confidence": "High",
-            "status": "Completed",
-            "timestamp": state.get("created_at") or "2026-08-04T20:00:06Z",
-            "processing_ms": 210
-        }
-    ]
+    raw_steps = state.get("reasoning_steps", [])
+    decision_log = state.get("decision_log", [])
+    
+    if not decision_log and raw_steps:
+        for step in raw_steps:
+            decision_log.append({
+                "stage": step.get("stage", "AI Agent"),
+                "module": step.get("stage", "AI Agent"),
+                "title": step.get("action", "Autonomous action"),
+                "decision": step.get("action", "Autonomous action"),
+                "why": step.get("reason", "Based on autonomous reasoning"),
+                "evidence": [f"Goal constraints: {step.get('goal', 'N/A')}"],
+                "outcome": "Completed step successfully",
+                "confidence": "High",
+                "status": "Completed"
+            })
 
     # 6. Build complete Investigation Summary
     inv_summary = {
         "host": host_name,
-        "servicesDiscovered": max(len(discovered_hosts), len(services_evidence), len(findings)),
+        "servicesDiscovered": max(len(discovered_hosts), len(findings)),
         "evidenceCollected": sum(len(f.get("evidence", [])) if isinstance(f.get("evidence"), list) else 1 for f in findings) + max(len(discovered_hosts), 1),
         "rulesEvaluated": max(len(findings) * 3, 10),
         "rulesMatched": len(findings),

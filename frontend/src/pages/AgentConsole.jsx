@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import AgentTimeline from '../components/AgentTimeline';
 import FindingCard from '../components/FindingCard';
@@ -65,10 +66,12 @@ const SUGGESTED_GOALS = [
   'Fast Perimeter Exposure Triage',
 ];
 
+import { useInvestigation } from '../context/InvestigationContext';
+
 export default function AgentConsole() {
   const [goal, setGoal] = useState('Full Threat Audit & CVE Correlation');
   const [scanData, setScanData] = useState(SAMPLE_SCANS.multiservice.data);
-  const [investigationId, setInvestigationId] = useState(null);
+  const { investigationId, setInvestigationId } = useInvestigation();
   const [statusData, setStatusData] = useState(null);
   const [isInvestigating, setIsInvestigating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -86,7 +89,6 @@ export default function AgentConsole() {
       });
       if (data && data.investigation_id) {
         setInvestigationId(data.investigation_id);
-        localStorage.setItem('inv_id', data.investigation_id);
       }
     } catch (err) {
       console.error('Failed to start investigation:', err);
@@ -95,23 +97,34 @@ export default function AgentConsole() {
   };
 
   useEffect(() => {
-    if (!investigationId) return;
+    if (!investigationId) {
+      setStatusData(null);
+      setIsInvestigating(false);
+      return;
+    }
 
-    const interval = setInterval(async () => {
+    let interval;
+    const fetchStatus = async () => {
       try {
         const data = await fetchApi(`/agent/status/${investigationId}`);
         setStatusData(data);
-
-        if (data.is_complete) {
+        if (data.is_complete || data.status === 'Completed') {
           setIsInvestigating(false);
-          clearInterval(interval);
+          if (interval) clearInterval(interval);
+        } else {
+          setIsInvestigating(true);
         }
       } catch (err) {
         console.error('Error polling status:', err);
       }
-    }, 1500);
+    };
 
-    return () => clearInterval(interval);
+    fetchStatus();
+    interval = setInterval(fetchStatus, 1500);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [investigationId]);
 
   const handleCopyScan = () => {
@@ -267,6 +280,12 @@ export default function AgentConsole() {
                       <span className="text-[10px] font-mono opacity-60 ml-2">Load</span>
                     </button>
                   ))}
+                </div>
+                
+                {/* Helper Link to Dashboard */}
+                <div className="mt-4 inline-flex items-center gap-2 px-3 py-2 bg-[var(--brand)]/10 text-[var(--brand)] border border-[var(--brand)]/20 rounded-lg text-sm font-semibold hover:bg-[var(--brand)]/20 transition-colors">
+                  <Layers className="w-4 h-4" />
+                  <Link to="/app/overview">View previous investigations</Link>
                 </div>
               </div>
             </div>

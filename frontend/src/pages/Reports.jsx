@@ -18,15 +18,16 @@ const SEV_COLORS = {
   Info:     '#64748B',
 };
 
+import { useInvestigation } from '../context/InvestigationContext';
+
 export default function Reports() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { resolved } = useTheme();
+  const { investigationId: invId } = useInvestigation();
 
   useEffect(() => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) { setLoading(false); return; }
 
     let intervalId = null;
@@ -56,7 +57,13 @@ export default function Reports() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId]);
+
+  if (!invId) {
+    return (
+      <EmptyState title="No active investigation" description="Complete an investigation to generate an executive security report." />
+    );
+  }
 
   if (loading) {
     return (
@@ -68,17 +75,11 @@ export default function Reports() {
     );
   }
 
-  if (error === 'no_inv') {
+  if (error) {
     return (
-      <Card className="max-w-md text-center mx-auto mt-12">
-        <FileSearch className="w-12 h-12 text-[var(--text-subtle)] mx-auto mb-3" />
-        <h2 className="text-xl font-extrabold text-[var(--text)] mb-2">No report available</h2>
-        <p className="text-sm text-[var(--text-muted)]">Complete an investigation to generate an executive report.</p>
-      </Card>
+      <EmptyState title="No reports generated" description="Complete an investigation to generate an executive security report." showButton={false} />
     );
   }
-
-  if (error) return <div className="p-8 text-[var(--danger)]">{error}</div>;
 
   return (
     <div className="space-y-6" id="sentinel-report-root">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useInvestigation } from '../context/InvestigationContext';
 import { UploadCloud, FileText, AlertCircle, ScanLine, ChevronRight } from 'lucide-react';
 import { uploadScan, startInvestigation } from '../api/investigationService';
 import PageHeader from '../components/PageHeader';
@@ -17,6 +18,7 @@ export default function UploadScan() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { setInvestigationId } = useInvestigation();
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -65,7 +67,7 @@ export default function UploadScan() {
     try {
       const response = await uploadScan(scanContent);
       const investigationId = response.investigationId;
-      localStorage.setItem('inv_id', investigationId);
+      setInvestigationId(investigationId);
       await startInvestigation(investigationId);
       navigate(`/app/investigation/${investigationId}`);
     } catch (err) {
@@ -89,6 +91,43 @@ export default function UploadScan() {
           <p className="text-sm">{error}</p>
         </div>
       )}
+
+      <Card>
+        <h2 className="text-xl font-extrabold text-[var(--text)] mb-4">Start Your First Security Investigation</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-6 h-6 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-xs font-bold">1</span>
+              <h3 className="font-bold text-[var(--text)]">Generate an Nmap scan</h3>
+            </div>
+            <div className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3 text-sm font-mono text-[var(--text-muted)] mt-2">
+              nmap -sV -O target_ip
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-6 h-6 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-xs font-bold">2</span>
+              <h3 className="font-bold text-[var(--text)]">Upload the scan output</h3>
+            </div>
+            <p className="text-sm text-[var(--text-muted)] mt-2">
+              Drag and drop your scan results or paste the raw output below.
+            </p>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-6 h-6 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-xs font-bold">3</span>
+              <h3 className="font-bold text-[var(--text)]">Sentinel-AI will:</h3>
+            </div>
+            <ul className="text-sm text-[var(--text-muted)] mt-2 space-y-1">
+              <li>• Parse network assets</li>
+              <li>• Identify exposed services</li>
+              <li>• Correlate vulnerabilities</li>
+              <li>• Build attack paths</li>
+              <li>• Generate security recommendations</li>
+            </ul>
+          </div>
+        </div>
+      </Card>
 
       <Card padding="p-0">
         {/* Drop zone */}

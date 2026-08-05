@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from knowledge_base.mitre_mapping import map_findings_to_mitre
+from ai.knowledge_base.mitre_mapping import map_findings_to_mitre
 
 def run(vulnerabilities: List[Dict[str, Any]]) -> Dict[str, Any]:
     """

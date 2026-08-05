@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Brain, MessageSquare, Send, Cpu, CheckCircle, Sparkles, Terminal } from 'lucide-react';
 import { fetchApi } from '../api/apiClient';
+import { useInvestigation } from '../context/InvestigationContext';
 
 export default function ReasoningPanel({ reasoningSteps = [], investigationId = '', onAskSentinel }) {
+  const { investigationId: contextInvId } = useInvestigation();
   const [question, setQuestion] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isAsking, setIsAsking] = useState(false);
 
   const handleAsk = async (e) => {
     e.preventDefault();
-    const activeInvId = investigationId || localStorage.getItem('inv_id') || '';
+    const activeInvId = investigationId || contextInvId || '';
     if (!question.trim() || !activeInvId) return;
 
     const userQ = question;

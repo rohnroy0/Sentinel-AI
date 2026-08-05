@@ -1,18 +1,12 @@
 def analyze_results(findings, attack_chains):
-    # In a real scenario, this would call OpenAI API or Ollama.
-    # Here we mock the LLM explanation based on the deterministic findings.
-    
     if not findings:
-        return "No significant security misconfigurations were detected during the investigation."
+        return "No findings available for analysis."
         
-    critical_count = len([f for f in findings if f['severity'] == 'Critical'])
-    high_count = len([f for f in findings if f['severity'] == 'High'])
+    summary_parts = [f"Analysis of {len(findings)} findings:"]
     
-    summary = f"Sentinel analyzed the uploaded scan and identified {critical_count} critical and {high_count} high-risk misconfigurations. "
-    
-    if critical_count > 0:
-        summary += "Immediate remediation is required to prevent remote compromise. The generated attack chains indicate direct paths from the public internet to sensitive internal services."
-    else:
-        summary += "Please review the identified findings and apply the recommended remediation steps."
+    for idx, f in enumerate(findings):
+        evidence = f.get('evidence', [])
+        evidence_str = "; ".join(evidence) if isinstance(evidence, list) else str(evidence)
+        summary_parts.append(f"{idx+1}. {f.get('title')} (Risk: {f.get('severity')}) - Evidence: {evidence_str}")
         
-    return summary
+    return "\n".join(summary_parts)

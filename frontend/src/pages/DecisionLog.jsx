@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useInvestigation } from '../context/InvestigationContext';
 import {
   CheckSquare, Clock, ShieldAlert, FileText, Database, Activity, GitBranch,
   Terminal, Layers, Play, Filter, Network, Server,
@@ -122,11 +123,14 @@ function DecisionCard({ entry }) {
             <Hash className="w-3 h-3" /> Evidence Used
           </p>
           <ul className="space-y-1">
-            {(Array.isArray(entry.evidence) ? entry.evidence : [String(entry.evidence)]).map((e, i) => (
-              <li key={i} className="text-xs text-[var(--text)] bg-[var(--bg)] border border-[var(--border)] rounded px-2.5 py-1.5 font-mono break-words">
-                {e}
-              </li>
-            ))}
+            {(Array.isArray(entry.evidence) ? entry.evidence : [String(entry.evidence)]).map((e, i) => {
+              const uniqueKey = typeof e === 'string' ? e : `${i}`;
+              return (
+                <li key={uniqueKey} className="text-xs text-[var(--text)] bg-[var(--bg)] border border-[var(--border)] rounded px-2.5 py-1.5 font-mono break-words">
+                  {e}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -185,10 +189,9 @@ export default function DecisionLog() {
   const [confidenceFilter, setConfidenceFilter] = useState('All');
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayDecisions, setReplayDecisions] = useState([]);
+  const { investigationId: invId } = useInvestigation();
 
   useEffect(() => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) {
       setLoading(false);
       return;
@@ -227,7 +230,7 @@ export default function DecisionLog() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId]);
 
   const handleStageSelect = useCallback(
     (stageId) => {
@@ -273,19 +276,11 @@ export default function DecisionLog() {
     );
   }
 
-  let invId = localStorage.getItem('inv_id');
-  if (invId === 'undefined' || invId === 'null') invId = null;
-  if (!invId) {
-    return <EmptyState />;
+  if (!invId || error) {
+    return <EmptyState title="No investigation decisions available" description="Once an investigation starts, Sentinel-AI will record every reasoning step from parsing to final report." />;
   }
 
-  if (error) {
-    return (
-      <div className="p-8 flex items-center justify-center text-[var(--danger)]">
-        {error}
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-4">
@@ -350,16 +345,19 @@ export default function DecisionLog() {
       </div>
 
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {decisions.length === 0 ? (
+          <EmptyState title="No investigation decisions available" description="Once an investigation starts, Sentinel-AI will record every reasoning step from parsing to final report." showButton={false} />
+        ) : filtered.length === 0 ? (
           <Card className="text-center py-12">
             <ShieldAlert className="w-12 h-12 text-[var(--text-subtle)] mx-auto mb-3" />
             <p className="text-[var(--text)] font-semibold">No decisions match the current filter</p>
             <p className="text-[var(--text-muted)] text-sm mt-1">Adjust the search query or stage filter above.</p>
           </Card>
         ) : (
-          filtered.map((entry) => (
-            <DecisionCard key={entry.id} entry={entry} />
-          ))
+          filtered.map((entry, idx) => {
+            const uniqueId = entry.id || entry.timestamp || `${entry.stage}-${idx}`;
+            return <DecisionCard key={uniqueId} entry={entry} />;
+          })
         )}
       </div>
 

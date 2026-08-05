@@ -11,3 +11,4 @@ class AgentState(TypedDict):
     reasoning_steps: List[Dict[str, Any]]
     final_report: Dict[str, Any]
     current_status: str
+    user_id: Optional[str]

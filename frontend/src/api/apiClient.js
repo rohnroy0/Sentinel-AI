@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export async function fetchApi(endpoint, options = {}) {
@@ -6,10 +8,14 @@ export async function fetchApi(endpoint, options = {}) {
   const apiPrefix = (cleanEndpoint.startsWith('/api') || BASE_URL.endsWith('/api')) ? '' : '/api';
   const url = `${BASE_URL.replace(/\/$/, '')}${apiPrefix}${cleanEndpoint}`;
 
+  const { data: { session } } = await supabase.auth.getSession();
+  const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeader,
       ...(options.headers || {}),
     },
   });

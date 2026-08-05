@@ -29,7 +29,8 @@ def init_db():
         selected_tools TEXT,
         decision_log TEXT,
         final_report TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user_id TEXT
     )
     """)
     
@@ -43,6 +44,7 @@ def init_db():
         "investigation_graph": "TEXT",
         "attack_chains": "TEXT",
         "full_state": "TEXT",
+        "user_id": "TEXT",
     }
     for col, col_type in new_cols.items():
         if col not in existing_cols:

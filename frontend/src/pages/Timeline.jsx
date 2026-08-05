@@ -19,9 +19,12 @@ const PIPELINE_STAGES = [
   { id: 'Report Generator', label: 'Investigation Complete', short: 'Report Generator' },
 ];
 
+import { useInvestigation } from '../context/InvestigationContext';
+
 export default function Timeline() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { investigationId: contextInvId } = useInvestigation();
   const [status, setStatus] = useState('Scan Uploaded');
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
@@ -31,9 +34,7 @@ export default function Timeline() {
     let interval;
     const fetchStatus = async () => {
       try {
-        let invId = localStorage.getItem('inv_id');
-        if (invId === 'undefined' || invId === 'null') invId = null;
-        const targetId = id || invId;
+        const targetId = id || contextInvId;
         if (!targetId) return;
 
         const data = await getInvestigationStatus(targetId);
@@ -52,7 +53,7 @@ export default function Timeline() {
     fetchStatus();
     interval = setInterval(fetchStatus, 1500);
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, contextInvId]);
 
   const getCurrentStageIndex = () => {
     if (isComplete) return PIPELINE_STAGES.length - 1;
@@ -62,10 +63,8 @@ export default function Timeline() {
 
   const currentStageIdx = getCurrentStageIndex();
 
-  let invId = localStorage.getItem('inv_id');
-  if (invId === 'undefined' || invId === 'null') invId = null;
-  if (!id && !invId) {
-    return <EmptyState />;
+  if (!id && !contextInvId) {
+    return <EmptyState title="No active investigation" description="Start an investigation to monitor its progress." />;
   }
 
   return (

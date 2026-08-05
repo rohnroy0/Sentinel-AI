@@ -295,11 +295,14 @@ function AutoFitBounds({ nodes }) {
   return null;
 }
 
+import { useInvestigation } from '../context/InvestigationContext';
+
 export default function AttackChains() {
   const [raw, setRaw] = useState({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { resolved } = useTheme();
+  const { investigationId: invId } = useInvestigation();
 
   const [bgColor, setBgColor] = useState(() => readCssVar('--border') || '#E5E7EB');
 
@@ -309,8 +312,6 @@ export default function AttackChains() {
   }, [resolved]);
 
   useEffect(() => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) { setLoading(false); return; }
 
     let intervalId = null;
@@ -340,7 +341,7 @@ export default function AttackChains() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId]);
 
   const { nodes, edges, depthCount } = useMemo(
     () => layoutChains(raw.nodes || [], raw.edges || []),
@@ -358,6 +359,10 @@ export default function AttackChains() {
     };
   }, [raw, depthCount]);
 
+  if (!invId || error) {
+    return <EmptyState title="No attack path generated" description="Attack journeys are created after vulnerabilities and security weaknesses are identified from a scan." />;
+  }
+
   if (loading) {
     return (
       <div className="p-8 text-[var(--text-muted)] flex items-center gap-3">
@@ -367,21 +372,6 @@ export default function AttackChains() {
     );
   }
 
-  let invId = localStorage.getItem('inv_id');
-  if (invId === 'undefined' || invId === 'null') invId = null;
-  if (!invId) {
-    return <EmptyState />;
-  }
-
-  if (error) {
-    return (
-      <Card className="max-w-md text-center">
-        <ShieldAlert className="w-12 h-12 text-[var(--danger)] mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-[var(--text)] mb-1">Couldn't load attack chains</h2>
-        <p className="text-sm text-[var(--text-muted)]">{error}</p>
-      </Card>
-    );
-  }
 
   if (!stats.total) {
     return (
@@ -391,21 +381,7 @@ export default function AttackChains() {
           title="Attack chains"
           description="Visualizes the likely paths an attacker could take to compromise the system."
         />
-        <Card className="max-w-lg mx-auto text-center py-12">
-          <div className="w-14 h-14 rounded-xl bg-[var(--sidebar)] border border-[var(--sidebar-active)] flex items-center justify-center mx-auto mb-4">
-            <GitBranch className="w-7 h-7 text-[var(--brand)]" />
-          </div>
-          <h2 className="text-xl font-extrabold text-[var(--text)] mb-2">No attack chains yet</h2>
-          <p className="text-sm text-[var(--text-muted)] mb-4 max-w-sm mx-auto">
-            The Correlation Engine found no multi-step paths across the current investigation.
-            Run an investigation against a host with multiple vulnerable services to see chains.
-          </p>
-          <ul className="text-xs text-[var(--text-muted)] max-w-sm mx-auto text-left space-y-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-4">
-            <li>• Services are detected and parsed first</li>
-            <li>• The Rule Engine grades each service</li>
-            <li>• The Correlation Engine chains findings by reachable path</li>
-          </ul>
-        </Card>
+        <EmptyState title="No attack path generated" description="Attack journeys are created after vulnerabilities and security weaknesses are identified from a scan." showButton={false} />
       </div>
     );
   }

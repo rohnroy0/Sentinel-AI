@@ -4,7 +4,19 @@ All notable changes to Sentinel-AI will be documented in this file.
 
 ---
 
-## Current Version — v1.0.0 (Build 2026.08.01)
+## Current Version — v1.1.0 (Build 2026.08.05)
+
+### Features & Architecture Improvements added:
+- **Pluggable Database Adapter Architecture (`database/`):** Implemented an abstract repository pattern (`adapter.py`, `sqlite_adapter.py`, `supabase_adapter.py`, `repository.py`) supporting both SQLite (Development/Local) and Supabase Python SDK (Production/Cloud). Business logic is completely decoupled from specific database engines.
+- **Strict Multi-Tenant User Isolation:** Enforced mandatory `user_id` validation across `InvestigationRepository` and database adapters. Rejects unauthenticated requests safely without writing to `"default_user"`.
+- **Explicit Auth Mode (`AUTH_MODE`):** Configurable `AUTH_MODE=supabase` vs `AUTH_MODE=demo`. In Demo Mode, generates isolated session-scoped temporary identities (`demo-user-{uuid}`) per browser session.
+- **FastAPI Health & Pydantic Schemas:** Added `GET /health` and `GET /api/health` returning system status, database engine, and auth mode. Added Pydantic schemas in `models/schemas.py`.
+- **Production Audit & Legacy Archiving:** Archived legacy setup/migration scripts into `backend/archive/` and cleaned unused frontend components.
+- **12-Point Automated Test Suite:** Expanded verification test suite in `test_agent_system.py` covering database repository abstraction, user isolation, auth modes, and attack chain evidence bounds.
+
+---
+
+## Version — v1.0.0 (Build 2026.08.01)
 
 ### Features added:
 - **Autonomous LangGraph Agent Engine:** Implemented full autonomous workflow (`agent/graph.py`, `agent_controller.py`) with Planner Node, Tool Node, Reasoning Node, and Memory Node.

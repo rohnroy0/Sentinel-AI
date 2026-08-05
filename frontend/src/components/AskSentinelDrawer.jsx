@@ -16,6 +16,7 @@ import {
   Maximize2,
   Minimize2
 } from 'lucide-react';
+import { useInvestigation } from '../context/InvestigationContext';
 import { fetchApi } from '../api/apiClient';
 
 const SUGGESTED_QUESTIONS = [
@@ -25,7 +26,8 @@ const SUGGESTED_QUESTIONS = [
   'Are there any unauthenticated RCE vulnerabilities?',
 ];
 
-export default function AskSentinelDrawer({ investigationId = '', statusData = null, onAskSentinel = null }) {
+export default function AskSentinelDrawer({ statusData = null, onAskSentinel = null }) {
+  const { investigationId } = useInvestigation();
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
@@ -62,10 +64,9 @@ export default function AskSentinelDrawer({ investigationId = '', statusData = n
           },
         ]);
       } else {
-        const activeInvId = investigationId || localStorage.getItem('inv_id') || '';
         const data = await fetchApi('/agent/ask', {
           method: 'POST',
-          body: JSON.stringify({ investigation_id: activeInvId, question: q }),
+          body: JSON.stringify({ investigation_id: investigationId, question: q }),
         });
         setChatHistory((prev) => [
           ...prev,

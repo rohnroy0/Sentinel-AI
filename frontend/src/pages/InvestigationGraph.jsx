@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useInvestigation } from '../context/InvestigationContext';
 import {
   ReactFlow,
   Controls,
@@ -629,6 +630,7 @@ export default function InvestigationGraph() {
   const stageParam = searchParams.get('stage');
   const { resolved } = useTheme();
   const { kinds, edges: edgePalette } = useKindColors();
+  const { investigationId: invId } = useInvestigation();
 
   const [graph, setGraph] = useState({ nodes: [], edges: [], layers: {} });
   const [findings, setFindings] = useState([]);
@@ -668,8 +670,6 @@ export default function InvestigationGraph() {
   }, [resolved]);
 
   useEffect(() => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) {
       setLoading(false);
       return;
@@ -708,7 +708,7 @@ export default function InvestigationGraph() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [invId]);
 
   // Filter nodes by active layer
   const layerFilteredNodes = useMemo(() => {
@@ -860,8 +860,6 @@ export default function InvestigationGraph() {
   const handlePaneClick = useCallback(() => setSelectedNodeId(null), []);
 
   const handleReplayStart = useCallback(async () => {
-    let invId = localStorage.getItem('inv_id');
-    if (invId === 'undefined' || invId === 'null') invId = null;
     if (!invId) return;
     try {
       const decisions = await getDecisionLog(invId);
@@ -870,7 +868,7 @@ export default function InvestigationGraph() {
     } catch (err) {
       console.error('Failed to load decision log for replay:', err);
     }
-  }, []);
+  }, [invId]);
 
   const handleReplayStep = useCallback((decision) => {
     const stageToKind = {
@@ -889,6 +887,10 @@ export default function InvestigationGraph() {
 
   const selectedNode = useMemo(() => positionedNodes.find((n) => n.id === selectedNodeId), [positionedNodes, selectedNodeId]);
 
+  if (!invId || error) {
+    return <EmptyState title="No graph data available" description="Complete an investigation to visualize findings and attack chains." />;
+  }
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center">
@@ -900,23 +902,7 @@ export default function InvestigationGraph() {
     );
   }
 
-  const currentInvId = (() => {
-    let id = localStorage.getItem('inv_id');
-    if (id === 'undefined' || id === 'null') id = null;
-    return id;
-  })();
 
-  if (!currentInvId) {
-    return <EmptyState />;
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 flex items-center justify-center text-[var(--danger)]">
-        {error}
-      </div>
-    );
-  }
 
   if (!graph.nodes || graph.nodes.length === 0) {
     return (
