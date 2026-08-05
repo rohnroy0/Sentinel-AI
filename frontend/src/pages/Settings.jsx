@@ -29,10 +29,7 @@ const SettingsPage = () => {
   const { mode, setMode, resolved } = useTheme();
 
   // AI Settings
-  const [aiProvider, setAiProvider] = useState(() => localStorage.getItem('aiProvider') || 'OpenAI');
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('apiKey') || '');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [aiModel, setAiModel] = useState(() => localStorage.getItem('aiModel') || 'gpt-4o');
+  // AI configuration is now managed via backend environment variables.
 
   // Investigation Settings
   const [invSettings, setInvSettings] = useState(() => {
@@ -58,16 +55,12 @@ const SettingsPage = () => {
   });
 
   // Backend Settings
-  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('apiUrl') || 'http://localhost:8000');
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('apiUrl') || '/api');
   const [connectionStatus, setConnectionStatus] = useState('unknown');
   const [lastTested, setLastTested] = useState(null);
 
   const handleSave = () => {
-    if (activeTab === 'ai') {
-      localStorage.setItem('aiProvider', aiProvider);
-      localStorage.setItem('apiKey', apiKey);
-      localStorage.setItem('aiModel', aiModel);
-    } else if (activeTab === 'investigation') {
+    if (activeTab === 'investigation') {
       localStorage.setItem('invSettings', JSON.stringify(invSettings));
     } else if (activeTab === 'upload') {
       localStorage.setItem('uploadSettings', JSON.stringify(uploadSettings));
@@ -153,68 +146,14 @@ const SettingsPage = () => {
                 <h3 className="text-xl font-extrabold text-[var(--text)]">AI Settings</h3>
                 <p className="text-sm text-[var(--text-muted)] mt-1">Configure the language-model backend that powers the report generator.</p>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[var(--text)] mb-2">AI Provider</label>
-                <div className="flex rounded-lg bg-[var(--surface-2)] p-1 w-fit">
-                  {['OpenAI', 'Ollama'].map((provider) => (
-                    <button
-                      key={provider}
-                      onClick={() => setAiProvider(provider)}
-                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                        aiProvider === provider
-                          ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-                      }`}
-                    >
-                      {provider}
-                    </button>
-                  ))}
+              <div className="bg-[var(--surface-2)] p-4 rounded-lg border border-[var(--border)] flex items-start gap-3">
+                <Shield className="w-5 h-5 text-[var(--brand)] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-semibold text-[var(--text)]">Managed Securely</h4>
+                  <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+                    For security reasons, AI provider configuration, models, and API keys are now strictly managed via backend environment variables (<code>.env</code>). Please configure your AI settings directly on the server to prevent exposing secrets in the browser.
+                  </p>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[var(--text)] mb-2">API Key</label>
-                <div className="relative max-w-md">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={aiProvider === 'OpenAI' ? 'sk-...' : 'Enter API Key (if required)'}
-                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg py-2.5 pl-3 pr-10 text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)]"
-                  />
-                  <button
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--text-muted)] hover:text-[var(--text)]"
-                  >
-                    {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                <p className="text-xs text-[var(--text-muted)] mt-2 flex items-center gap-1">
-                  <Info className="w-3 h-3" /> API Key is stored locally in your browser only
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[var(--text)] mb-2">Model</label>
-                <select
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  className="w-full max-w-md bg-[var(--bg)] border border-[var(--border)] rounded-lg py-2.5 px-3 text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)]"
-                >
-                  {aiProvider === 'OpenAI' ? (
-                    <>
-                      <option value="gpt-4o">gpt-4o</option>
-                      <option value="gpt-4-turbo">gpt-4-turbo</option>
-                      <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="llama3">llama3</option>
-                      <option value="mistral">mistral</option>
-                    </>
-                  )}
-                </select>
               </div>
             </div>
           )}
@@ -364,7 +303,7 @@ const SettingsPage = () => {
                   type="text"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="http://localhost:8000"
+                  placeholder="/api"
                   className="w-full max-w-md bg-[var(--bg)] border border-[var(--border)] rounded-lg py-2.5 px-3 text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)]"
                 />
               </div>

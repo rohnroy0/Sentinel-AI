@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Brain, MessageSquare, Send, Cpu, CheckCircle, Sparkles, Terminal } from 'lucide-react';
+import { fetchApi } from '../api/apiClient';
 
 export default function ReasoningPanel({ reasoningSteps = [], investigationId = '', onAskSentinel }) {
   const [question, setQuestion] = useState('');
@@ -24,12 +25,10 @@ export default function ReasoningPanel({ reasoningSteps = [], investigationId = 
           { sender: 'sentinel', text: res.answer, evidence: res.evidence, recommendation: res.recommendation },
         ]);
       } else {
-        const response = await fetch('http://localhost:8000/api/agent/ask', {
+        const data = await fetchApi('/agent/ask', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ investigation_id: activeInvId, question: userQ }),
         });
-        const data = await response.json();
         setChatHistory((prev) => [
           ...prev,
           { sender: 'sentinel', text: data.answer, evidence: data.evidence, recommendation: data.recommendation },

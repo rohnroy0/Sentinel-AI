@@ -93,8 +93,9 @@ Every finding includes a mandatory 5-point explainable breakdown:
 
 ## 🔍 CVE Intelligence & MITRE Mapping
 
-- **Hybrid CVE Lookup**: Queries local `backend/data/cve_cache.json` for offline reliability and fallbacks to NVD API.
-- **MITRE ATT&CK Mapping**: Maps exposed services (e.g. SSH -> T1021.004, HTTP -> T1190, Weak Credentials -> T1078) to MITRE techniques.
+- **Hybrid CVE Lookup**: Queries local `backend/data/cve_cache.json` for offline reliability and fallbacks to NVD API. Low-confidence hits are smartly downgraded to Configuration Issues rather than assigning false CVSS scores.
+- **MITRE ATT&CK Mapping**: Maps exposed services directly to adversary tactics using an evidence-based approach (e.g., T1190 for public exploits, T1078 for compromised accounts, T1213 for data exposure). 
+- **Attack Chain Builder**: Synthesizes end-to-end exploit chains without duplicate or assumed nodes. Strictly governs Lateral Movement and Privilege Escalation paths based on explicit telemetry rules and network topology.
 
 ---
 

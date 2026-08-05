@@ -128,6 +128,19 @@ def lookup_vulnerabilities(service_name: str, version: str = "", product_name: s
                         "confidence_level": confidence_level,
                         "confidence_reason": confidence_reason
                     })
+                else:
+                    matched_cves.append({
+                        "cve_id": "N/A",
+                        "severity": item.get("severity", "MEDIUM"),
+                        "score": "N/A",
+                        "description": f"Configuration Issue: {item.get('description', '')}",
+                        "affected_software": f"{product_name or service_name} {version}",
+                        "exploit_risk": "Configuration Exposure",
+                        "recommendation": "Review security configuration.",
+                        "confidence_score": confidence_score,
+                        "confidence_level": confidence_level,
+                        "confidence_reason": confidence_reason
+                    })
                 
     if matched_cves:
         return sorted(matched_cves, key=lambda x: x["confidence_score"], reverse=True)
