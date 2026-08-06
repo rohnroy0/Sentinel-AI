@@ -58,10 +58,13 @@ class SQLiteAdapter(BaseDatabaseAdapter):
                 "investigation_graph": "TEXT",
                 "attack_chains": "TEXT",
                 "full_state": "TEXT",
+                "updated_at": "TIMESTAMP",
+
             }
             for col, col_type in required_cols.items():
                 if col not in existing_cols:
                     cursor.execute(f"ALTER TABLE investigations ADD COLUMN {col} {col_type}")
+
 
             conn.commit()
             conn.close()
@@ -71,12 +74,14 @@ class SQLiteAdapter(BaseDatabaseAdapter):
             raise
 
     def save_investigation(self, state: Dict[str, Any]) -> bool:
+        inv_id = state.get("investigation_id") or state.get("id") or str(uuid.uuid4())
         user_id = state.get("user_id")
+        logger.info(f"SQLiteAdapter SAVE START: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: sqlite")
+
         if not user_id:
-            logger.error("SQLiteAdapter save_investigation rejected: user_id is missing.")
+            logger.error(f"SQLiteAdapter SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: None | DATABASE ENGINE: sqlite | Reason: user_id is missing.")
             return False
 
-        inv_id = state.get("investigation_id") or state.get("id") or str(uuid.uuid4())
         state["investigation_id"] = inv_id
 
         user_goal = state.get("user_goal") or state.get("scan_name") or "Autonomous Investigation"
@@ -94,7 +99,10 @@ class SQLiteAdapter(BaseDatabaseAdapter):
         risk_dashboard = json.dumps(state.get("risk_dashboard", {}))
         investigation_graph = json.dumps(state.get("investigation_graph", {}))
         attack_chains = json.dumps(state.get("attack_chains", []))
-        full_state = json.dumps(state)
+        try:
+            full_state = json.dumps(state)
+        except Exception:
+            full_state = json.dumps(state, default=str)
 
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -122,7 +130,8 @@ class SQLiteAdapter(BaseDatabaseAdapter):
                 risk_dashboard=excluded.risk_dashboard,
                 investigation_graph=excluded.investigation_graph,
                 attack_chains=excluded.attack_chains,
-                full_state=excluded.full_state
+                full_state=excluded.full_state,
+                updated_at=CURRENT_TIMESTAMP
             """, (
                 inv_id, user_goal, status, scan_data, discovered_hosts, vulnerabilities,
                 selected_tools, decision_log, final_report, user_id, tool_results,
@@ -130,12 +139,14 @@ class SQLiteAdapter(BaseDatabaseAdapter):
                 attack_chains, full_state
             ))
             conn.commit()
+            logger.info(f"SQLiteAdapter SAVE SUCCESS: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: sqlite")
             return True
         except Exception as e:
-            logger.error(f"SQLiteAdapter error saving investigation {inv_id}: {e}")
+            logger.error(f"SQLiteAdapter SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: sqlite | Error: {e}", exc_info=True)
             return False
         finally:
             conn.close()
+
 
     def get_investigation_by_id(self, inv_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         if not user_id:

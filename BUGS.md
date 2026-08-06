@@ -6,6 +6,21 @@ This document tracks known issues, bug reports, root cause analyses, and resolut
 
 ## Resolved Issues
 
+### Bug ID: BUG-011
+- **Issue:** Investigations disappear after page refresh or cache eviction; Supabase investigations table rows not returned on reload.
+- **Cause:**
+  1. `get_agent_status` in `backend/agent/agent_controller.py` called `get_investigation_by_id(inv_id)` without passing `user_id`. Because multi-tenant isolation requires `user_id`, database lookups returned `None` (404 Investigation Not Found) whenever an investigation was not in the 20-item in-memory cache.
+  2. `get_agent_status` return payload omitted `"user_id"`.
+  3. `SupabaseAdapter` and `SQLiteAdapter` lacked serialization fallback (`json.loads(json.dumps(state, default=str))`) for complex nested graph structures.
+- **Status:** `Fixed`
+- **Fix:**
+  1. Updated `get_agent_status` signature and call sites in `backend/main.py` to accept and pass `user_id` to `get_investigation_by_id(inv_id, user_id=user_id)`.
+  2. Included `"user_id"` in `get_agent_status` response dictionary.
+  3. Added explicit standardized audit logs (`INVESTIGATION ID:`, `USER ID:`, `DATABASE ENGINE:`, `SAVE START:`, `SAVE SUCCESS:`, `SAVE FAILURE:`) across repository and database adapters.
+  4. Added JSON serialization sanitization to ensure Supabase PostgREST API compliance.
+
+---
+
 ### Bug ID: BUG-001
 - **Issue:** Risk dashboard and findings show empty data after server restart or direct page reload.
 - **Cause:** Investigation state was stored only in memory (`investigations` / `agent_investigations` dictionaries). On process restart, in-memory state was wiped.

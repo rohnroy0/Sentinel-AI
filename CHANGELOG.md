@@ -4,7 +4,17 @@ All notable changes to Sentinel-AI will be documented in this file.
 
 ---
 
-## Current Version — v1.2.0 (Build 2026.08.06)
+## Current Version — v1.2.1 (Build 2026.08.06)
+
+### Investigation Persistence & Supabase Restoration Fix:
+- **Database Restoration User Context Forwarding:** Resolved regression in `agent_controller.py` where `get_agent_status` failed to forward `user_id` to `get_investigation_by_id`, causing database restoration calls after cache eviction or page refresh to return `None` (404 Investigation Not Found).
+- **Audit Logging Standards:** Added standardized explicit audit logging across `repository.py`, `supabase_adapter.py`, and `sqlite_adapter.py` matching: `INVESTIGATION ID:`, `USER ID:`, `DATABASE ENGINE:`, `SAVE START:`, `SAVE SUCCESS:`, `SAVE FAILURE:`.
+- **JSON Serialization & Schema Compliance:** Added `json.loads(json.dumps(state, default=str))` sanitization in `SupabaseAdapter` and `SQLiteAdapter` to ensure PostgREST / SQLite API serialization compliance across complex nested graph structures. Included `"user_id"` in `get_agent_status` return payload.
+
+---
+
+## Version — v1.2.0 (Build 2026.08.06)
+
 
 ### Performance Optimization & Asynchronous Pipeline Acceleration:
 - **Asynchronous Non-Blocking Investigation Pipeline:** Updated `POST /api/upload` to return `investigation_id` immediately. Executed analysis in background tasks with real-time status, stage, and progress metrics (10% Parsing -> 35% CVE Intel -> 55% Risk Analysis -> 75% MITRE Mapping -> 90% Attack Graph -> 100% Executive Report). Removed 5-second artificial sleep delays in `main.py`.

@@ -27,16 +27,30 @@ class InvestigationRepository:
             return SQLiteAdapter()
 
     def save_investigation(self, state: Dict[str, Any]) -> bool:
-        user_id = state.get("user_id")
-        if not user_id:
-            logger.error("Repository rejected save_investigation: user_id is missing.")
+        inv_id = state.get("investigation_id") or state.get("id") or "UNKNOWN"
+        user_id = state.get("user_id") or "UNKNOWN"
+        engine = config.DATABASE_ENGINE.lower()
+
+        logger.info(f"SAVE START: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: {engine}")
+
+        if not state.get("user_id"):
+            logger.error(f"SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: {engine} | Reason: user_id is missing.")
             return False
-        return self.adapter.save_investigation(state)
+
+        res = self.adapter.save_investigation(state)
+        if res:
+            logger.info(f"SAVE SUCCESS: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: {engine}")
+        else:
+            logger.error(f"SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: {engine} | Reason: Adapter save failed.")
+        return res
 
     def save_deterministic_investigation(self, inv) -> bool:
         user_id = getattr(inv, "user_id", None)
+        inv_id = getattr(inv, "id", "UNKNOWN")
+        engine = config.DATABASE_ENGINE.lower()
+
         if not user_id:
-            logger.error("Repository rejected save_deterministic_investigation: user_id is missing.")
+            logger.error(f"SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: None | DATABASE ENGINE: {engine} | Reason: user_id is missing on InvestigationState.")
             return False
 
         attack_chains = getattr(inv, "attack_chains", {})
@@ -49,7 +63,12 @@ class InvestigationRepository:
             "user_id": user_id,
             "scan_name": "Deterministic Pipeline Investigation",
             "user_goal": "Deterministic Pipeline Investigation",
-            "current_status": inv.status,
+            "current_status": getattr(inv, "status", "Completed"),
+            "status": getattr(inv, "status", "Completed"),
+            "stage": getattr(inv, "stage", getattr(inv, "status", "Completed")),
+            "progress": getattr(inv, "progress", 100),
+            "is_complete": getattr(inv, "is_complete", False),
+            "updated_at": getattr(inv, "updated_at", None),
             "scan_data": getattr(inv, "content", ""),
             "findings": getattr(inv, "findings", []),
             "vulnerabilities": getattr(inv, "findings", []),
@@ -66,6 +85,7 @@ class InvestigationRepository:
         }
 
         return self.save_investigation(full_state)
+
 
     def get_investigation_by_id(self, inv_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         if not user_id:

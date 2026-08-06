@@ -32,21 +32,29 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             logger.error(f"SupabaseAdapter initialization error: {e}")
 
     def save_investigation(self, state: Dict[str, Any]) -> bool:
+        inv_id = state.get("investigation_id") or state.get("id") or str(uuid.uuid4())
         user_id = state.get("user_id")
+        logger.info(f"SupabaseAdapter SAVE START: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase")
+
         if not user_id:
-            logger.error("SupabaseAdapter save_investigation rejected: user_id is missing.")
+            logger.error(f"SupabaseAdapter SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: None | DATABASE ENGINE: supabase | Reason: user_id is missing.")
             return False
 
         if not self.client:
-            logger.error("SupabaseAdapter uninitialized: cannot save investigation.")
+            logger.error(f"SupabaseAdapter SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase | Reason: Supabase client uninitialized.")
             return False
 
-        inv_id = state.get("investigation_id") or state.get("id") or str(uuid.uuid4())
         state["investigation_id"] = inv_id
 
         user_goal = state.get("user_goal") or state.get("scan_name") or "Autonomous Investigation"
         status = state.get("current_status") or state.get("status") or "Completed"
         risk_score = state.get("risk_dashboard", {}).get("overallScore", 0) if isinstance(state.get("risk_dashboard"), dict) else 0
+
+        # Sanitize state dictionary to ensure PostgREST / JSON serialization compliance
+        try:
+            clean_state = json.loads(json.dumps(state, default=str))
+        except Exception:
+            clean_state = state
 
         data = {
             "id": inv_id,
@@ -56,7 +64,7 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             "status": status,
             "risk_score": risk_score,
             "scan_data": state.get("scan_data", ""),
-            "full_state": state
+            "full_state": clean_state
         }
 
         try:
@@ -64,11 +72,12 @@ class SupabaseAdapter(BaseDatabaseAdapter):
                 self.client.table("investigations").upsert(data).execute()
             else:
                 self.client.from_table("investigations").upsert(data).execute()
-            logger.info(f"SupabaseAdapter successfully saved investigation {inv_id} for user {user_id}")
+            logger.info(f"SupabaseAdapter SAVE SUCCESS: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase")
             return True
         except Exception as e:
-            logger.error(f"SupabaseAdapter error saving investigation {inv_id}: {e}")
+            logger.error(f"SupabaseAdapter SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase | Error: {e}", exc_info=True)
             return False
+
 
     def get_investigation_by_id(self, inv_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         if not user_id:

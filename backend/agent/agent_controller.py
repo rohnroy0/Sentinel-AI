@@ -193,12 +193,16 @@ def _finalize_agent_state(state: Dict[str, Any]):
     state["investigation_graph"] = investigation_graph
 
 
-def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
+def get_agent_status(inv_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     state = agent_investigations.get(inv_id)
     if not state:
-        state = get_investigation_by_id(inv_id)
+        if user_id:
+            state = get_investigation_by_id(inv_id, user_id=user_id)
         if not state:
             return None
+        # Cache back in memory runtime once retrieved from DB
+        agent_investigations[inv_id] = state
+
             
     tool_results = state.get("tool_results", {})
     
@@ -373,6 +377,7 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
 
     return {
         "investigation_id": state["investigation_id"],
+        "user_id": state.get("user_id"),
         "user_goal": state.get("user_goal", "Autonomous Investigation"),
         "current_status": state.get("current_status", "Completed"),
         "selected_tools": state.get("selected_tools", []),
@@ -389,3 +394,4 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
         "investigation_summary": inv_summary,
         "is_complete": state.get("current_status") in ["Investigation Complete", "Completed"]
     }
+
