@@ -145,16 +145,24 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             return []
 
         try:
-            fields = "id, user_goal, scan_name, status, risk_score, created_at, user_id"
-            if hasattr(self.client, "table"):
-                res = self.client.table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
-            else:
-                res = self.client.from_table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
+            fields = "id, scan_name, status, risk_score, created_at, user_id"
+            try:
+                if hasattr(self.client, "table"):
+                    res = self.client.table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
+                else:
+                    res = self.client.from_table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
+            except Exception as select_err:
+                logger.warning(f"SupabaseAdapter select('{fields}') failed: {select_err}. Falling back to select('*').")
+                if hasattr(self.client, "table"):
+                    res = self.client.table("investigations").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+                else:
+                    res = self.client.from_table("investigations").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
 
             rows = getattr(res, "data", []) or []
             results = []
             for r in rows:
-                user_goal = r.get("user_goal") or r.get("scan_name") or "Autonomous Investigation"
+                full_state = r.get("full_state") if isinstance(r.get("full_state"), dict) else {}
+                user_goal = r.get("user_goal") or r.get("scan_name") or full_state.get("user_goal") or "Autonomous Investigation"
                 results.append({
                     "investigation_id": r["id"],
                     "user_goal": user_goal,
@@ -168,6 +176,7 @@ class SupabaseAdapter(BaseDatabaseAdapter):
         except Exception as e:
             logger.error(f"SupabaseAdapter error fetching investigations for user {user_id}: {e}")
             return []
+
 
     def delete_investigation(self, inv_id: str, user_id: str) -> bool:
         if not user_id:
