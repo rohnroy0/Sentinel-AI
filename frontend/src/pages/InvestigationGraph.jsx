@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+
 import { useSearchParams, Link } from 'react-router-dom';
 import { useInvestigation } from '../context/InvestigationContext';
 import {
