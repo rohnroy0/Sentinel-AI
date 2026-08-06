@@ -1,13 +1,13 @@
-import React from 'react';
-import { ShieldAlert, Info, AlertTriangle, CheckSquare } from 'lucide-react';
+import React, { memo } from 'react';
+import { ShieldAlert } from 'lucide-react';
 
-export default function FindingCard({ finding }) {
+function FindingCard({ finding }) {
   if (!finding) return null;
 
   const severityColor =
-    finding.severity === 'CRITICAL' || finding.severity === 'HIGH'
+    finding.severity === 'CRITICAL' || finding.severity === 'HIGH' || finding.severity === 'Critical' || finding.severity === 'High'
       ? 'border-red-500/40 bg-red-500/5 text-red-400'
-      : finding.severity === 'MEDIUM'
+      : finding.severity === 'MEDIUM' || finding.severity === 'Medium'
       ? 'border-amber-500/40 bg-amber-500/5 text-amber-400'
       : 'border-blue-500/40 bg-blue-500/5 text-blue-400';
 
@@ -17,7 +17,7 @@ export default function FindingCard({ finding }) {
         <div className="flex items-center space-x-2">
           <ShieldAlert className="w-5 h-5 text-[var(--brand)]" />
           <h4 className="text-sm font-bold text-white">
-            {finding.finding || finding.service || 'Exposed Security Vulnerability'}
+            {finding.title || finding.finding || finding.service || 'Exposed Security Vulnerability'}
           </h4>
         </div>
         <div className="flex items-center gap-2">
@@ -32,7 +32,7 @@ export default function FindingCard({ finding }) {
           <span className="font-bold text-gray-400 uppercase text-[10px] tracking-wider block mb-1">
             Reason
           </span>
-          <p className="text-gray-200">{finding.reason || finding.description || 'Publicly exposed service vulnerability.'}</p>
+          <p className="text-gray-200">{finding.why || finding.reason || finding.description || 'Publicly exposed service vulnerability.'}</p>
         </div>
 
         {finding.confidence_score !== undefined && (
@@ -47,13 +47,13 @@ export default function FindingCard({ finding }) {
               <span className="font-bold text-gray-400 uppercase text-[10px] tracking-wider block mb-1">
                 Confidence Level
               </span>
-              <p className="text-gray-200 font-mono">{finding.confidence_level}</p>
+              <p className="text-gray-200 font-mono">{finding.confidence_level || finding.confidence}</p>
             </div>
             <div className="col-span-2">
               <span className="font-bold text-gray-400 uppercase text-[10px] tracking-wider block mb-1">
                 Match Reason
               </span>
-              <p className="text-blue-300/90">{finding.confidence_reason}</p>
+              <p className="text-blue-300/90">{finding.confidence_reason || 'Verified scan evidence.'}</p>
             </div>
           </div>
         )}
@@ -82,9 +82,12 @@ export default function FindingCard({ finding }) {
           <span className="font-bold text-gray-400 uppercase text-[10px] tracking-wider block mb-1">
             Recommendation
           </span>
-          <p className="text-emerald-300/90 font-medium">{finding.recommendation || 'Upgrade service to latest release.'}</p>
+          <p className="text-emerald-300/90 font-medium">{finding.remediation || finding.recommendation || 'Upgrade service to latest release.'}</p>
         </div>
       </div>
     </div>
   );
 }
+
+export default memo(FindingCard);
+

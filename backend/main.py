@@ -239,18 +239,18 @@ from services.remediation import build_remediation
 
 async def run_investigation_pipeline(inv: InvestigationState):
     try:
-        # ─── Parser ──────────────────────────────────────────────────────
-        inv.status = "Parsing Scan"
+        # ─── 1. Parser (10%) ──────────────────────────────────────────────
+        inv.status = "Parsing Scan Data"
+        inv.stage = "Parsing Scan Data"
         inv.progress = 10
+        inv.updated_at = datetime.utcnow().isoformat()
         t0 = time.perf_counter()
         parsed_data = parse_nmap_text(inv.content)
         detected_services = list(parsed_data.get("open_ports", []))
         port_count = len(detected_services)
         parser_ms = (time.perf_counter() - t0) * 1000
 
-        evidence_lines = []
-        for p in detected_services:
-            evidence_lines.append(f"Port {p['port']} Open — {p.get('service', '')} {p.get('version', '')}".strip())
+        evidence_lines = [f"Port {p['port']} Open — {p.get('service', '')} {p.get('version', '')}".strip() for p in detected_services]
 
         inv.log_decision(
             stage="Parser",
@@ -267,11 +267,12 @@ async def run_investigation_pipeline(inv: InvestigationState):
             save_deterministic_investigation(inv)
         except Exception:
             pass
-        await asyncio.sleep(1)
 
-        # ─── Rule Engine ─────────────────────────────────────────────────
-        inv.status = "Applying Rules"
-        inv.progress = 22
+        # ─── 2. Rule Engine & CVE Intelligence (35%) ─────────────────────
+        inv.status = "CVE Intelligence Lookup"
+        inv.stage = "CVE Intelligence Lookup"
+        inv.progress = 35
+        inv.updated_at = datetime.utcnow().isoformat()
         t0 = time.perf_counter()
         rule_findings, _ = apply_rules(parsed_data)
         rule_ms = (time.perf_counter() - t0) * 1000
@@ -288,7 +289,6 @@ async def run_investigation_pipeline(inv: InvestigationState):
             processing_ms=rule_ms,
         )
 
-        # Per-finding rule-engine decision entries — one per matched rule.
         for finding in rule_findings:
             inv.log_decision(
                 stage="Rule Engine",
@@ -302,15 +302,7 @@ async def run_investigation_pipeline(inv: InvestigationState):
                 confidence=finding.get("confidence", "Medium"),
                 processing_ms=round(rule_ms / max(len(rule_findings), 1), 2),
             )
-        try:
-            save_deterministic_investigation(inv)
-        except Exception:
-            pass
-        await asyncio.sleep(1)
 
-        # ─── Knowledge Base ──────────────────────────────────────────────
-        inv.status = "Knowledge Base Lookup"
-        inv.progress = 38
         t0 = time.perf_counter()
         enriched_findings = enrich_findings(rule_findings)
         kb_ms = (time.perf_counter() - t0) * 1000
@@ -339,11 +331,16 @@ async def run_investigation_pipeline(inv: InvestigationState):
                 confidence="High",
                 processing_ms=round(kb_ms / max(len(enriched_findings), 1), 2),
             )
-        await asyncio.sleep(1)
+        try:
+            save_deterministic_investigation(inv)
+        except Exception:
+            pass
 
-        # ─── Risk Engine ─────────────────────────────────────────────────
-        inv.status = "Calculating Risk"
-        inv.progress = 52
+        # ─── 3. Risk Engine (55%) ────────────────────────────────────────
+        inv.status = "Risk Analysis & Scoring"
+        inv.stage = "Risk Analysis & Scoring"
+        inv.progress = 55
+        inv.updated_at = datetime.utcnow().isoformat()
         t0 = time.perf_counter()
         risk_findings = calculate_risk(enriched_findings)
         risk_ms = (time.perf_counter() - t0) * 1000
@@ -372,32 +369,16 @@ async def run_investigation_pipeline(inv: InvestigationState):
                 processing_ms=round(risk_ms / max(len(risk_findings), 1), 2),
             )
         inv.findings = risk_findings
-        inv.risk_dashboard = build_risk_dashboard(risk_findings, {}, detected_services=detected_services)
-        inv.remediation = build_remediation(risk_findings)
-        # Build a partial investigation graph early (no chain_data yet) so the
-        # frontend graph page has something to display before the pipeline ends.
-        try:
-            partial_graph = build_investigation_graph(
-                parsed_data=parsed_data,
-                detected_services=detected_services,
-                rule_findings=rule_findings,
-                risk_findings=risk_findings,
-                chain_data={"nodes": [], "edges": []},
-                remediation=inv.remediation,
-            )
-            if partial_graph and partial_graph.get("nodes"):
-                inv.graph = partial_graph
-        except Exception:
-            pass
         try:
             save_deterministic_investigation(inv)
         except Exception:
             pass
-        await asyncio.sleep(1)
 
-        # ─── Correlation Engine ──────────────────────────────────────────
-        inv.status = "Correlating Findings"
-        inv.progress = 66
+        # ─── 4. Correlation & MITRE ATT&CK Mapping (75%) ────────────────
+        inv.status = "MITRE ATT&CK Mapping"
+        inv.stage = "MITRE ATT&CK Mapping"
+        inv.progress = 75
+        inv.updated_at = datetime.utcnow().isoformat()
         t0 = time.perf_counter()
         graph_data = correlate_findings(risk_findings)
         correlation_ms = (time.perf_counter() - t0) * 1000
@@ -411,11 +392,12 @@ async def run_investigation_pipeline(inv: InvestigationState):
             confidence="High",
             processing_ms=correlation_ms,
         )
-        await asyncio.sleep(1)
 
-        # ─── Attack Chain Builder ────────────────────────────────────────
-        inv.status = "Building Attack Chains"
-        inv.progress = 80
+        # ─── 5. Attack Graph & Topology (90%) ────────────────────────────
+        inv.status = "Attack Graph & Topology"
+        inv.stage = "Attack Graph & Topology"
+        inv.progress = 90
+        inv.updated_at = datetime.utcnow().isoformat()
         t0 = time.perf_counter()
         chain_data = build_chains(risk_findings)
         chain_ms = (time.perf_counter() - t0) * 1000
@@ -430,11 +412,8 @@ async def run_investigation_pipeline(inv: InvestigationState):
             confidence="High",
             processing_ms=chain_ms,
         )
-        await asyncio.sleep(1)
 
-        # ─── LLM + Report ────────────────────────────────────────────────
-        inv.status = "LLM Analysis & Reporting"
-        inv.progress = 93
+        # ─── 6. Executive Report Generation (100%) ────────────────────────
         t0 = time.perf_counter()
         llm_summary = analyze_results(risk_findings, chain_data)
         report_data = generate_report(risk_findings, chain_data, llm_summary)
@@ -450,7 +429,7 @@ async def run_investigation_pipeline(inv: InvestigationState):
             processing_ms=llm_ms,
         )
 
-        # ─── Build the rich investigation graph + remediation + summary ──
+        # Build and cache final structures ONCE upon completion
         remediation = build_remediation(risk_findings)
         inv.graph = build_investigation_graph(
             parsed_data=parsed_data,
@@ -466,7 +445,6 @@ async def run_investigation_pipeline(inv: InvestigationState):
         inv.report = report_data
         inv.risk_dashboard = build_risk_dashboard(risk_findings, chain_data, detected_services=detected_services)
         inv.remediation = remediation
-
         inv.duration_seconds = round(time.perf_counter() - inv.started_at, 3)
         inv.investigation_summary = build_investigation_summary(
             inv=inv,
@@ -494,9 +472,10 @@ async def run_investigation_pipeline(inv: InvestigationState):
         )
 
         inv.status = "Investigation Complete"
+        inv.stage = "Executive Report Generation"
         inv.progress = 100
         inv.is_complete = True
-        # Persist to SQLite so data survives server restarts
+        inv.updated_at = datetime.utcnow().isoformat()
         try:
             save_deterministic_investigation(inv)
         except Exception as persist_err:
@@ -504,7 +483,9 @@ async def run_investigation_pipeline(inv: InvestigationState):
 
     except Exception as e:
         inv.status = f"Error: {str(e)}"
+        inv.stage = "Error"
         inv.is_complete = True
+        inv.updated_at = datetime.utcnow().isoformat()
         try:
             save_deterministic_investigation(inv)
         except Exception:
@@ -548,8 +529,6 @@ def build_investigation_summary(*, inv, detected_services, rule_findings,
     confidence_order = {"High": 3, "Medium": 2, "Low": 1}
     overall_confidence = "Medium"
     if risk_findings:
-        # Confidence is the maximum across all findings — i.e. as good as the
-        # strongest signal we have.
         overall_confidence = max(
             (f.get("confidence", "Medium") for f in risk_findings),
             key=lambda c: confidence_order.get(c, 0),
@@ -571,16 +550,16 @@ def build_investigation_summary(*, inv, detected_services, rule_findings,
         "mitreTechniquesMapped": len(mitre_set),
         "recommendedRemediations": len(remediation),
         "overallRisk": get_overall_risk(risk_findings),
-        "durationSeconds": inv.duration_seconds,
+        "durationSeconds": getattr(inv, "duration_seconds", 0),
         "assessmentConfidence": overall_confidence,
         "pipelineStages": [
             "Parser", "Rule Engine", "Knowledge Base", "Risk Engine",
             "Correlation Engine", "Attack Chain Builder", "LLM", "Report Generator",
         ],
-        "graphNodeCount": len(inv.graph.get("nodes", [])),
-        "graphEdgeCount": len(inv.graph.get("edges", [])),
-        "decisionCount": len(inv.decision_log),
-        "graphNodeKinds": sorted({n.get("kind") for n in inv.graph.get("nodes", []) if n.get("kind")}),
+        "graphNodeCount": len(getattr(inv, "graph", {}).get("nodes", [])),
+        "graphEdgeCount": len(getattr(inv, "graph", {}).get("edges", [])),
+        "decisionCount": len(getattr(inv, "decision_log", [])),
+        "graphNodeKinds": sorted({n.get("kind") for n in getattr(inv, "graph", {}).get("nodes", []) if n.get("kind")}),
     }
 
 
@@ -599,7 +578,8 @@ async def start_investigation(inv_id: str, background_tasks: BackgroundTasks, us
 
 @app.get("/api/investigation/{inv_id}/status")
 async def get_status(inv_id: str, user_id: str = Depends(get_current_user)):
-    # 1. Check Autonomous Agent state (in-memory runtime or DB hydrated)
+    """Fast, lightweight status endpoint for polling progress without rebuilding graphs or reports."""
+    # 1. Check Autonomous Agent state
     agent_status = get_agent_status(inv_id)
     if agent_status:
         if agent_status.get('user_id') and agent_status.get('user_id') != user_id:
@@ -607,10 +587,12 @@ async def get_status(inv_id: str, user_id: str = Depends(get_current_user)):
         current_st = agent_status.get("current_status") or agent_status.get("status") or "In Progress"
         is_comp = agent_status.get("is_complete", False) or current_st in ("Investigation Complete", "Completed", "Error")
         return {
-            "status": current_st,
-            "progress": 100 if is_comp else agent_status.get("progress", 50),
-            "isComplete": is_comp,
             "investigation_id": inv_id,
+            "status": current_st,
+            "progress": agent_status.get("progress", 100 if is_comp else 50),
+            "stage": agent_status.get("stage", current_st),
+            "isComplete": is_comp,
+            "updated_at": agent_status.get("updated_at", datetime.utcnow().isoformat()),
             "user_id": agent_status.get("user_id")
         }
 
@@ -620,10 +602,12 @@ async def get_status(inv_id: str, user_id: str = Depends(get_current_user)):
         if getattr(inv, 'user_id', None) and inv.user_id != user_id:
             raise HTTPException(status_code=403, detail='Access denied')
         return {
+            "investigation_id": inv_id,
             "status": inv.status,
             "progress": inv.progress,
+            "stage": getattr(inv, 'stage', inv.status),
             "isComplete": inv.is_complete,
-            "investigation_id": inv_id,
+            "updated_at": getattr(inv, 'updated_at', datetime.utcnow().isoformat()),
             "user_id": getattr(inv, 'user_id', None)
         }
 
@@ -635,14 +619,17 @@ async def get_status(inv_id: str, user_id: str = Depends(get_current_user)):
         current_st = db_state.get("current_status") or db_state.get("status") or "Completed"
         is_comp = current_st in ("Investigation Complete", "Completed", "Error")
         return {
-            "status": current_st,
-            "progress": 100 if is_comp else 50,
-            "isComplete": is_comp,
             "investigation_id": inv_id,
+            "status": current_st,
+            "progress": db_state.get("progress", 100 if is_comp else 50),
+            "stage": db_state.get("stage", current_st),
+            "isComplete": is_comp,
+            "updated_at": db_state.get("updated_at", datetime.utcnow().isoformat()),
             "user_id": db_state.get("user_id")
         }
 
     raise HTTPException(status_code=404, detail="Investigation not found")
+
 
 
 @app.get("/api/investigation/{inv_id}/findings")

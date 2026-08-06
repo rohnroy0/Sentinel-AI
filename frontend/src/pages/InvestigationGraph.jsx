@@ -280,7 +280,7 @@ function layoutGraph(nodes, edges = [], layerFilter = 'all') {
  * Minimal text on face (Name, Severity, Confidence) with detailed telemetry in metadata.
  * Special high-fidelity display for CVE nodes (CVE ID, Severity, Impact, Confidence).
  */
-function CustomNode({ data, selected }) {
+const CustomNode = memo(function CustomNode({ data, selected }) {
   const { kinds } = useKindColors();
   const kind = data.kind || 'evidence';
   const palette = kinds[kind] || kinds.evidence;
@@ -423,9 +423,10 @@ function CustomNode({ data, selected }) {
       />
     </div>
   );
-}
+});
 
 const nodeTypes = { custom: CustomNode };
+
 
 /**
  * Slide-out Detail Panel.

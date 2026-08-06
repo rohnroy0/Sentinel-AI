@@ -1,15 +1,16 @@
-import React from 'react';
-import { CheckCircle2, Clock, PlayCircle, Loader2 } from 'lucide-react';
+import React, { memo } from 'react';
+import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
 
 const STEPS = [
-  { id: 'parsing', label: 'Parsing Scan', matchTool: 'nmap_analyzer' },
-  { id: 'vulns', label: 'CVE Correlation', matchTool: 'vulnerability_lookup' },
-  { id: 'risk', label: 'Risk Scoring', matchTool: 'risk_analyzer' },
-  { id: 'graph', label: 'Attack Graph', matchTool: 'attack_graph_builder' },
-  { id: 'report', label: 'Report Synthesis', matchTool: 'report_generator' },
+  { id: 'parsing', label: 'Parsing (10%)', matchTool: 'nmap_analyzer' },
+  { id: 'vulns', label: 'CVE Intel (35%)', matchTool: 'vulnerability_lookup' },
+  { id: 'risk', label: 'Risk Analysis (55%)', matchTool: 'risk_analyzer' },
+  { id: 'mitre', label: 'MITRE ATT&CK (75%)', matchTool: 'threat_intelligence' },
+  { id: 'graph', label: 'Attack Graph (90%)', matchTool: 'attack_graph_builder' },
+  { id: 'report', label: 'Report Synthesis (100%)', matchTool: 'report_generator' },
 ];
 
-export default function AgentTimeline({ selectedTools = [], currentStatus = '' }) {
+function AgentTimeline({ selectedTools = [], currentStatus = '' }) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 mb-6 shadow-sm">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -23,7 +24,7 @@ export default function AgentTimeline({ selectedTools = [], currentStatus = '' }
           </span>
         )}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {STEPS.map((step) => {
           const isDone = selectedTools.includes(step.matchTool);
           const isCurrent = !isDone && currentStatus.toLowerCase().includes(step.label.toLowerCase().slice(0, 4));
@@ -61,3 +62,6 @@ export default function AgentTimeline({ selectedTools = [], currentStatus = '' }
     </div>
   );
 }
+
+export default memo(AgentTimeline);
+

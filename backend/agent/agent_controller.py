@@ -85,6 +85,8 @@ async def _run_agent_workflow(inv_id: str):
     graph = create_investigation_graph()
     try:
         final_state = await graph.run(state)
+        # Compute final resources ONCE upon completion and store in state
+        _finalize_agent_state(final_state)
         agent_investigations[inv_id] = final_state
         save_investigation(final_state)
     except Exception as e:
@@ -95,20 +97,13 @@ async def _run_agent_workflow(inv_id: str):
         gc.collect()
 
 
-def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
-    state = agent_investigations.get(inv_id)
-    if not state:
-        state = get_investigation_by_id(inv_id)
-        if not state:
-            return None
-            
+def _finalize_agent_state(state: Dict[str, Any]):
+    """Helper to compute final graphs, summaries, risk dashboards once upon workflow completion."""
     tool_results = state.get("tool_results", {})
-    
-    # 1. Format & normalize findings
     vulnerabilities = state.get("vulnerabilities", [])
     explained = state.get("explained_findings", [])
     source_findings = explained if explained else vulnerabilities
-    
+
     findings = []
     for i, f in enumerate(source_findings):
         service = f.get("service") or f.get("title", f"Service-{i+1}")
@@ -117,7 +112,6 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
         raw_sev = (f.get("severity") or "High").capitalize()
         sev = raw_sev if raw_sev in ["Critical", "High", "Medium", "Low", "Info"] else "High"
         
-        # Determine actual title
         if f.get("title"):
             title = f.get("title")
         elif f.get("description") and len(f.get("description")) < 50:
@@ -155,14 +149,12 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
         hosts_set = {v.get("host", "192.168.1.10") for v in vulnerabilities}
         discovered_hosts = [{"ip": h, "status": "up"} for h in hosts_set]
 
-    # 2. Extract or build attack chains
     attack_data = tool_results.get("attack_graph_builder", {})
     attack_chains = attack_data.get("attack_chains") or state.get("attack_chains", [])
     if not attack_chains:
         from ai.attack_chain_builder.builder import build_chains
         attack_chains = [build_chains(findings, discovered_hosts=discovered_hosts)]
 
-    # 3. Extract or build risk dashboard
     risk_analyzer_result = tool_results.get("risk_analyzer", {})
     if isinstance(risk_analyzer_result, dict) and "risk_dashboard" in risk_analyzer_result:
         risk_dash = risk_analyzer_result["risk_dashboard"]
@@ -183,7 +175,6 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
         from services.remediation import build_remediation
         remediation = build_remediation(findings)
 
-    # 5. Extract or build complete investigation graph across all entities
     from ai.investigation_graph.builder import build_investigation_graph
     investigation_graph = build_investigation_graph(
         parsed_data={"open_ports": discovered_hosts},
@@ -193,6 +184,116 @@ def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
         chain_data=attack_chains[0] if attack_chains else {},
         remediation=remediation,
     )
+
+    state["findings"] = findings
+    state["discovered_hosts"] = discovered_hosts
+    state["attack_chains"] = attack_chains
+    state["risk_dashboard"] = risk_dash
+    state["remediation"] = remediation
+    state["investigation_graph"] = investigation_graph
+
+
+def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:
+    state = agent_investigations.get(inv_id)
+    if not state:
+        state = get_investigation_by_id(inv_id)
+        if not state:
+            return None
+            
+    tool_results = state.get("tool_results", {})
+    
+    # 1. Format & normalize findings
+    vulnerabilities = state.get("vulnerabilities", [])
+    explained = state.get("explained_findings", [])
+    source_findings = explained if explained else vulnerabilities
+    
+    findings = state.get("findings", [])
+    if not findings:
+        for i, f in enumerate(source_findings):
+            service = f.get("service") or f.get("title", f"Service-{i+1}")
+            host = f.get("host", "192.168.1.10")
+            cve = f.get("cve_id") or f.get("cve", "CVE-2021-41773")
+            raw_sev = (f.get("severity") or "High").capitalize()
+            sev = raw_sev if raw_sev in ["Critical", "High", "Medium", "Low", "Info"] else "High"
+            
+            if f.get("title"):
+                title = f.get("title")
+            elif f.get("description") and len(f.get("description")) < 50:
+                title = f.get("description")
+            elif f.get("finding"):
+                title = f.get("finding")
+            elif cve != "N/A" and cve != "CVE-2021-41773":
+                title = f"{service.capitalize()} Vulnerability ({cve})"
+            else:
+                title = f"{service.capitalize()} Exposure"
+                
+            findings.append({
+                "id": f.get("finding_id") or f.get("id", f"finding-{i+1}"),
+                "rule_id": f.get("rule_id", f"RULE_00{i+1}"),
+                "title": title,
+                "severity": sev,
+                "confidence": f.get("confidence") or f.get("confidence_level", "High"),
+                "confidence_score": f.get("confidence_score", 90),
+                "confidence_level": f.get("confidence_level", "High"),
+                "confidence_reason": f.get("confidence_reason", "Extracted from scan evidence"),
+                "host": host,
+                "service": service,
+                "port": str(f.get("port", "80")),
+                "cve_id": cve,
+                "why": f.get("reason") or f.get("why") or f.get("description") or f"Publicly accessible service {service} with active vulnerability {cve}.",
+                "evidence": f.get("evidence") if isinstance(f.get("evidence"), list) else [f"Host: {host}", f"Service: {service}", f"CVE: {cve}"],
+                "impact": f.get("impact") or f"Potential unauthorized access or compromise on host {host}.",
+                "remediation": f.get("recommendation") or f.get("remediation") or f"Upgrade {service} and restrict public network exposure.",
+                "mitre": f.get("mitre", "T1190 - Exploit Public-Facing Application"),
+                "cwe": f.get("cwe", "CWE-200")
+            })
+
+    discovered_hosts = state.get("discovered_hosts", [])
+    if not discovered_hosts and vulnerabilities:
+        hosts_set = {v.get("host", "192.168.1.10") for v in vulnerabilities}
+        discovered_hosts = [{"ip": h, "status": "up"} for h in hosts_set]
+
+    # 2. Re-use cached attack chains or build once
+    attack_chains = state.get("attack_chains")
+    if not attack_chains:
+        attack_data = tool_results.get("attack_graph_builder", {})
+        attack_chains = attack_data.get("attack_chains") or state.get("attack_chains", [])
+        if not attack_chains:
+            from ai.attack_chain_builder.builder import build_chains
+            attack_chains = [build_chains(findings, discovered_hosts=discovered_hosts)]
+
+    # 3. Re-use cached risk dashboard or build once
+    risk_dash = state.get("risk_dashboard")
+    if not risk_dash or not isinstance(risk_dash, dict) or not risk_dash.get("overallRisk"):
+        risk_analyzer_result = tool_results.get("risk_analyzer", {})
+        if isinstance(risk_analyzer_result, dict) and "risk_dashboard" in risk_analyzer_result:
+            risk_dash = risk_analyzer_result["risk_dashboard"]
+        else:
+            from ai.risk_engine.risk_calculator import build_dynamic_risk_dashboard
+            first_chain = attack_chains[0] if attack_chains and isinstance(attack_chains, list) else (attack_chains if isinstance(attack_chains, dict) else {})
+            risk_dash = build_dynamic_risk_dashboard(
+                findings=findings,
+                detected_services=discovered_hosts,
+                chain_data=first_chain
+            )
+
+    remediation = state.get("remediation", [])
+    if not remediation and findings:
+        from services.remediation import build_remediation
+        remediation = build_remediation(findings)
+
+    # 5. Re-use cached investigation graph or build once
+    investigation_graph = state.get("investigation_graph")
+    if not investigation_graph or not investigation_graph.get("nodes"):
+        from ai.investigation_graph.builder import build_investigation_graph
+        investigation_graph = build_investigation_graph(
+            parsed_data={"open_ports": discovered_hosts},
+            detected_services=discovered_hosts,
+            rule_findings=findings,
+            risk_findings=findings,
+            chain_data=attack_chains[0] if attack_chains else {},
+            remediation=remediation,
+        )
 
     # 6. Extract or build rich decision log & reasoning steps covering all pipeline stages
     sev_counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Info": 0}

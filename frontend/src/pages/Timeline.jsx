@@ -9,15 +9,14 @@ import EmptyState from '../components/EmptyState';
 import Card from '../components/Card';
 
 const PIPELINE_STAGES = [
-  { id: 'Parser', label: 'Scan Uploaded', short: 'Parser' },
-  { id: 'Rule Engine', label: 'Applying Rules', short: 'Rule Engine' },
-  { id: 'Knowledge Base', label: 'Knowledge Base Lookup', short: 'Knowledge Base' },
-  { id: 'Risk Engine', label: 'Calculating Risk', short: 'Risk Engine' },
-  { id: 'Correlation Engine', label: 'Correlating Findings', short: 'Correlation Engine' },
-  { id: 'Attack Chain Builder', label: 'Building Attack Chains', short: 'Attack Chain Builder' },
-  { id: 'LLM', label: 'LLM Analysis & Reporting', short: 'LLM' },
-  { id: 'Report Generator', label: 'Investigation Complete', short: 'Report Generator' },
+  { id: 'Parser', label: 'Parsing Scan Data', short: 'Parsing (10%)', targetProgress: 10 },
+  { id: 'Knowledge Base', label: 'CVE Intelligence Lookup', short: 'CVE Intelligence (35%)', targetProgress: 35 },
+  { id: 'Risk Engine', label: 'Risk Analysis & Scoring', short: 'Risk Analysis (55%)', targetProgress: 55 },
+  { id: 'Correlation Engine', label: 'MITRE ATT&CK Mapping', short: 'MITRE Mapping (75%)', targetProgress: 75 },
+  { id: 'Attack Chain Builder', label: 'Attack Graph & Topology', short: 'Attack Graph (90%)', targetProgress: 90 },
+  { id: 'Report Generator', label: 'Executive Report Generation', short: 'Executive Report (100%)', targetProgress: 100 },
 ];
+
 
 import { useInvestigation } from '../context/InvestigationContext';
 
