@@ -4,7 +4,17 @@ All notable changes to Sentinel-AI will be documented in this file.
 
 ---
 
-## Current Version — v1.2.2 (Build 2026.08.06)
+## Current Version — v1.2.3 (Build 2026.08.06)
+
+### Investigation History Card Data & Title Fix:
+- **Lightweight History `findings_count`**: Updated `get_all_investigations` in `sqlite_adapter.py` and `supabase_adapter.py` to calculate and return `findings_count` directly from indexed scan data without parsing or loading `full_state` JSON.
+- **Dynamic Investigation Title Resolution**: Eliminated generic `"Deterministic Pipeline Investigation"` hardcoded labels across `repository.py`, `sqlite_adapter.py`, and `supabase_adapter.py`, resolving targets dynamically (e.g. `Nmap Audit: 192.168.1.10`) with `"Security Investigation"` fallback.
+- **Frontend Dashboard Card Null-Safety**: Updated `DashboardOverview.jsx` history card rendering to use fallback chain `inv.findings_count ?? inv.vulnerabilities?.length ?? inv.findings?.length ?? 0` and title chain `inv.scan_name || inv.title || inv.user_goal || 'Security Investigation'`.
+- **18-Point Verification Suite**: Expanded `backend/tests/test_agent_system.py` with Test 18 validating lightweight history response structure, finding counts, and title priority rules under user-isolated scoping.
+
+---
+
+## Version — v1.2.2 (Build 2026.08.06)
 
 ### Production Audit, Remediation Schema, Finding Correlation & MITRE Validation Pass:
 - **Remediation Data Pipeline & Schema Normalization**: Standardized remediation contract (`id`, `title`, `finding_title`, `severity`, `priority`, `confidence`, `why_it_matters`, `why`, `recommendation`, `action`, `fix`, `mitre`, `cwe`, `difficulty`, `status`, `completed`, `host`, `port`, `cve`) with `"Not available"` graceful fallbacks in `Remediation.jsx`.

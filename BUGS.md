@@ -6,6 +6,20 @@ This document tracks known issues, bug reports, root cause analyses, and resolut
 
 ## Resolved Issues
 
+### Bug ID: BUG-017
+- **Issue:** Dashboard "Your Investigations" cards rendered "0 Findings" for completed investigations and displayed hardcoded title "Deterministic Pipeline Investigation".
+- **Cause:**
+  1. `get_all_investigations` in database adapters omitted `findings_count` in returned summary objects, causing `DashboardOverview.jsx` to fall back to `inv.vulnerabilities.length` (which was set to `[]` for lightweight history).
+  2. `save_deterministic_investigation` in `repository.py` hardcoded `scan_name` and `user_goal` to `"Deterministic Pipeline Investigation"`.
+- **Status:** `Fixed`
+- **Fix:**
+  1. Updated `get_all_investigations` in `sqlite_adapter.py` and `supabase_adapter.py` to calculate lightweight `findings_count` without parsing or loading `full_state` JSON.
+  2. Implemented dynamic target parsing (e.g. `Nmap Audit: 192.168.1.10`) with fallback chain (`scan_name` -> `title` -> `user_goal` -> `"Security Investigation"`).
+  3. Updated `DashboardOverview.jsx` history card rendering to use fallback chain `inv.findings_count ?? inv.vulnerabilities?.length ?? inv.findings?.length ?? 0`.
+  4. Verified all 18 automated tests pass in `test_agent_system.py`.
+
+---
+
 ### Bug ID: BUG-016
 - **Issue:** Production Audit Pass: Remediation UI displayed empty fields; duplicate SMB findings were created on ports 139 & 445; executive summary printed raw finding lists; MySQL database exposures mapped falsely to T1213; Risk Dashboard lacked driver explanations; attack chain terminology was confusing.
 - **Cause:**

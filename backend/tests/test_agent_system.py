@@ -364,10 +364,26 @@ PORT     STATE SERVICE VERSION
     score_c, level_c = calculate_dynamic_risk_score(multi_findings, detected_services=[{"port": 80}, {"port": 445}, {"port": 3389}, {"port": 3306}])
     assert score_c >= 85 and level_c == "Critical", f"Scenario C (Multi-service RCE) score ({score_c}, {level_c}) should be Critical"
     print(f"[OK] Scenario scores verified: SSH-only={score_a} ({level_a}), Apache CVE={score_b} ({level_b}), Multi-service={score_c} ({level_c})")
-    print("[OK] TEST 17 PASSED: Risk engine scenarios operating as expected!")
+    # ----------------------------------------------------
+    # TEST 18: Lightweight History Findings Count & Title Priority
+    # ----------------------------------------------------
+    print("\n[TEST 18] Testing Lightweight History findings_count & Title Metadata...")
+    from database.models import get_all_investigations
+    hist_list = get_all_investigations(user_id=TEST_USER_A)
+    assert len(hist_list) > 0, "User A must have investigations in history"
+    for item in hist_list:
+        assert "findings_count" in item, "History item must contain 'findings_count'"
+        assert isinstance(item["findings_count"], int), "'findings_count' must be an integer"
+        assert item["findings_count"] >= 0, "'findings_count' must be >= 0"
+        assert item.get("scan_name") is not None, "History item must contain 'scan_name'"
+        assert item.get("user_goal") is not None, "History item must contain 'user_goal'"
+        assert item.get("scan_name") != "Deterministic Pipeline Investigation", "History item should not use generic string"
+    assert any(item["findings_count"] > 0 for item in hist_list), "At least one investigation must have findings_count > 0"
+    print(f"[OK] History Findings Count Verified: {hist_list[0]['findings_count']} findings | Title: '{hist_list[0]['scan_name']}'")
+    print("[OK] TEST 18 PASSED: Lightweight history findings count & title contract operating as expected!")
 
     print("\n" + "=" * 60)
-    print("ALL 17 PRODUCTION VERIFICATION TESTS PASSED SUCCESSFULLY!")
+    print("ALL 18 PRODUCTION VERIFICATION TESTS PASSED SUCCESSFULLY!")
     print("=" * 60)
 
 if __name__ == "__main__":

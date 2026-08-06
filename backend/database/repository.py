@@ -57,12 +57,25 @@ class InvestigationRepository:
         if isinstance(attack_chains, dict):
             attack_chains = [attack_chains]
 
+        goal = getattr(inv, "user_goal", None) or getattr(inv, "scan_name", None)
+        if not goal or goal in ("Deterministic Pipeline Investigation", "Autonomous Investigation"):
+            content = getattr(inv, "content", "")
+            if "report for" in content.lower():
+                first_line = [line for line in content.splitlines() if "report for" in line.lower()]
+                if first_line:
+                    target_name = first_line[0].split("report for")[-1].strip()
+                    goal = f"Nmap Audit: {target_name}"
+            if not goal or goal in ("Deterministic Pipeline Investigation", "Autonomous Investigation"):
+                goal = "Full Threat Audit & Network Scan"
+
+        findings_list = getattr(inv, "findings", [])
+
         full_state = {
             "investigation_id": inv.id,
             "inv_type": "deterministic",
             "user_id": user_id,
-            "scan_name": "Deterministic Pipeline Investigation",
-            "user_goal": "Deterministic Pipeline Investigation",
+            "scan_name": goal,
+            "user_goal": goal,
             "current_status": getattr(inv, "status", "Completed"),
             "status": getattr(inv, "status", "Completed"),
             "stage": getattr(inv, "stage", getattr(inv, "status", "Completed")),
@@ -70,8 +83,9 @@ class InvestigationRepository:
             "is_complete": getattr(inv, "is_complete", False),
             "updated_at": getattr(inv, "updated_at", None),
             "scan_data": getattr(inv, "content", ""),
-            "findings": getattr(inv, "findings", []),
-            "vulnerabilities": getattr(inv, "findings", []),
+            "findings": findings_list,
+            "vulnerabilities": findings_list,
+            "findings_count": len(findings_list),
             "detected_services": getattr(inv, "detected_services", []),
             "discovered_hosts": getattr(inv, "detected_services", []),
             "risk_dashboard": getattr(inv, "risk_dashboard", {}),

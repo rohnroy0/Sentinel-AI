@@ -223,11 +223,25 @@ class SQLiteAdapter(BaseDatabaseAdapter):
             results = []
             for r in rows:
                 row_dict = dict(r)
+                vulns = json.loads(row_dict.get("vulnerabilities") or "[]")
+                findings_count = len(vulns) if isinstance(vulns, list) else 0
+
+                raw_goal = row_dict.get("user_goal") or ""
+                if not raw_goal or raw_goal in ("Deterministic Pipeline Investigation", "Autonomous Investigation"):
+                    display_title = "Security Investigation"
+                else:
+                    display_title = raw_goal
+
                 results.append({
+                    "id": row_dict["id"],
                     "investigation_id": row_dict["id"],
-                    "user_goal": row_dict.get("user_goal", ""),
+                    "scan_name": display_title,
+                    "user_goal": display_title,
+                    "title": display_title,
+                    "status": row_dict.get("status", "Completed"),
                     "current_status": row_dict.get("status", "Completed"),
-                    "vulnerabilities": json.loads(row_dict.get("vulnerabilities") or "[]"),
+                    "vulnerabilities": vulns,
+                    "findings_count": findings_count,
                     "discovered_hosts": json.loads(row_dict.get("discovered_hosts") or "[]"),
                     "created_at": row_dict.get("created_at"),
                     "user_id": row_dict.get("user_id")

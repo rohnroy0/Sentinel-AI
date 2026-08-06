@@ -56,12 +56,16 @@ class SupabaseAdapter(BaseDatabaseAdapter):
         except Exception:
             clean_state = state
 
+        findings_list = state.get("vulnerabilities", state.get("findings", []))
+        findings_count = len(findings_list) if isinstance(findings_list, list) else 0
+
         core_data = {
             "id": inv_id,
             "user_id": user_id,
             "scan_name": user_goal,
             "status": status,
             "risk_score": risk_score,
+            "findings_count": findings_count,
             "full_state": clean_state
         }
 
@@ -158,7 +162,7 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             return []
 
         try:
-            fields = "id, scan_name, status, risk_score, created_at, user_id"
+            fields = "id, scan_name, user_goal, status, risk_score, created_at, user_id, findings_count"
             try:
                 if hasattr(self.client, "table"):
                     res = self.client.table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
@@ -175,11 +179,27 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             results = []
             for r in rows:
                 full_state = r.get("full_state") if isinstance(r.get("full_state"), dict) else {}
-                user_goal = r.get("user_goal") or r.get("scan_name") or full_state.get("user_goal") or "Autonomous Investigation"
+                raw_goal = r.get("user_goal") or r.get("scan_name") or full_state.get("user_goal") or ""
+                if not raw_goal or raw_goal in ("Deterministic Pipeline Investigation", "Autonomous Investigation"):
+                    display_title = "Security Investigation"
+                else:
+                    display_title = raw_goal
+
+                findings_count = r.get("findings_count")
+                if findings_count is None:
+                    findings_list = full_state.get("vulnerabilities") or full_state.get("findings") or []
+                    findings_count = len(findings_list) if isinstance(findings_list, list) else 0
+
                 results.append({
+                    "id": r["id"],
                     "investigation_id": r["id"],
-                    "user_goal": user_goal,
+                    "scan_name": display_title,
+                    "user_goal": display_title,
+                    "title": display_title,
+                    "status": r.get("status", "Completed"),
                     "current_status": r.get("status", "Completed"),
+                    "risk_score": r.get("risk_score", 0),
+                    "findings_count": findings_count,
                     "vulnerabilities": [],
                     "discovered_hosts": [],
                     "created_at": r.get("created_at"),

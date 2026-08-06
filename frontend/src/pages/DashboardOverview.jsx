@@ -122,30 +122,34 @@ export default function DashboardOverview() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
-            {history.map((inv) => (
-              <Card key={inv.investigation_id} padding="p-0" className="overflow-hidden hover:border-[var(--brand-accent)] transition-colors cursor-pointer group" onClick={() => setInvestigationId(inv.investigation_id)}>
-                <div className="p-4 border-b border-[var(--border)] group-hover:bg-[var(--sidebar)] transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-[var(--text)] text-sm line-clamp-1 flex-1 pr-2" title={inv.user_goal || inv.scan_name || 'Investigation'}>
-                      {inv.user_goal || inv.scan_name || 'Autonomous Investigation'}
-                    </h3>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-muted)]">
-                      {new Date(inv.created_at).toLocaleDateString()}
-                    </span>
+            {history.map((inv) => {
+              const displayTitle = inv.scan_name || inv.title || inv.user_goal || 'Security Investigation';
+              const count = inv.findings_count ?? (Array.isArray(inv.vulnerabilities) ? inv.vulnerabilities.length : (Array.isArray(inv.findings) ? inv.findings.length : 0));
+              return (
+                <Card key={inv.investigation_id || inv.id} padding="p-0" className="overflow-hidden hover:border-[var(--brand-accent)] transition-colors cursor-pointer group" onClick={() => setInvestigationId(inv.investigation_id || inv.id)}>
+                  <div className="p-4 border-b border-[var(--border)] group-hover:bg-[var(--sidebar)] transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-bold text-[var(--text)] text-sm line-clamp-1 flex-1 pr-2" title={displayTitle}>
+                        {displayTitle}
+                      </h3>
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-muted)]">
+                        {inv.created_at ? new Date(inv.created_at).toLocaleDateString() : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block w-2 h-2 rounded-full ${inv.current_status === 'Error' || inv.status === 'Error' ? 'bg-[var(--danger)]' : inv.current_status === 'Completed' || inv.current_status === 'Investigation Complete' || inv.status === 'Completed' ? 'bg-[var(--success)]' : 'bg-[var(--warning)] animate-pulse'}`} />
+                      <span className="text-xs text-[var(--text-muted)] font-mono">{inv.current_status || inv.status || 'Unknown'}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-block w-2 h-2 rounded-full ${inv.current_status === 'Error' ? 'bg-[var(--danger)]' : inv.current_status === 'Completed' || inv.current_status === 'Investigation Complete' ? 'bg-[var(--success)]' : 'bg-[var(--warning)] animate-pulse'}`} />
-                    <span className="text-xs text-[var(--text-muted)] font-mono">{inv.current_status || 'Unknown'}</span>
+                  <div className="px-4 py-3 bg-[var(--sidebar)]/50 flex items-center justify-between text-xs text-[var(--text-muted)]">
+                    <span>{count} Findings</span>
+                    <div className="flex items-center gap-1 font-semibold text-[var(--brand)] group-hover:translate-x-1 transition-transform">
+                      View <ArrowRight className="w-3 h-3" />
+                    </div>
                   </div>
-                </div>
-                <div className="px-4 py-3 bg-[var(--sidebar)]/50 flex items-center justify-between text-xs text-[var(--text-muted)]">
-                  <span>{Array.isArray(inv.vulnerabilities) ? inv.vulnerabilities.length : 0} Findings</span>
-                  <div className="flex items-center gap-1 font-semibold text-[var(--brand)] group-hover:translate-x-1 transition-transform">
-                    View <ArrowRight className="w-3 h-3" />
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 
