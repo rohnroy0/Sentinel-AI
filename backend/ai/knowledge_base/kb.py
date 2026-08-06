@@ -95,7 +95,7 @@ KB_STORE = {
     },
     "RULE_016": {
         "cwe": "CWE-306",
-        "mitre_technique": "T1213 - Data from Information Repositories",
+        "mitre_technique": "T1046 - Network Service Scanning",
         "best_practice": "Enable Elasticsearch security (xpack security) and disable anonymous access.",
         "remediation_template": "Set xpack.security.enabled: true in elasticsearch.yml, run bin/elasticsearch-setup-passwords interactive, and add an authentication realm."
     },

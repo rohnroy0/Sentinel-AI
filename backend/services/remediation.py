@@ -76,18 +76,41 @@ def build_remediation(risk_findings: List[Dict[str, Any]]) -> List[Dict[str, Any
             continue
         seen.add(key)
 
+        from ai.knowledge_base.mitre_mapping import map_service_to_mitre
+        from ai.knowledge_base.kb import KB_STORE
+
+        ctx = f.get("context") or KB_STORE.get(rule_id, {})
+        cwe_str = f.get("cwe") or ctx.get("cwe") or "CWE-200"
+        mitre_str = f.get("mitre") or f.get("mitre_technique") or ctx.get("mitre_technique")
+        if not mitre_str:
+            svc_name = f.get("service") or title
+            mitre_data = map_service_to_mitre(svc_name)
+            mitre_str = f"{mitre_data['id']} - {mitre_data['name']}"
+
+        p_badge = "P1" if sev == "Critical" else ("P2" if sev == "High" else "P3")
+
         remediations.append({
             "id": f"REM-{idx+1:03d}",
+            "title": title,
             "finding_title": title,
-            "rule_id": rule_id,
-            "cve": cve,
-            "port": port,
-            "host": host,
             "severity": sev,
-            "priority": "P1 - Immediate" if sev in ["Critical", "High"] else "P2 - Planned",
-            "action": rec,
+            "priority": p_badge,
+            "priority_label": "P1 - Immediate" if sev in ["Critical", "High"] else "P2 - Planned",
+            "confidence": f.get("confidence_level") or f.get("confidence") or "High",
             "why_it_matters": why,
+            "why": why,
+            "recommendation": rec,
+            "action": rec,
+            "fix": rec,
+            "mitre": mitre_str,
+            "cwe": cwe_str,
             "difficulty": diff,
+            "status": "Pending",
+            "completed": False,
+            "host": host,
+            "port": str(port),
+            "cve": cve,
+            "rule_id": rule_id,
             "estimated_time": "15-30 mins" if diff == "Easy" else ("1-2 hours" if diff == "Medium" else "3-5 hours"),
             "verification_step": f"Re-scan target host {host} port {port} to confirm access restriction and version update.",
             "impact_reduction": f"Reduces attack surface for host {host} on port {port} ({cve})."
@@ -95,3 +118,4 @@ def build_remediation(risk_findings: List[Dict[str, Any]]) -> List[Dict[str, Any
 
     remediations.sort(key=lambda r: sev_order.get(r["severity"], 0), reverse=True)
     return remediations
+

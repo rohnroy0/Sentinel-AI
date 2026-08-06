@@ -51,9 +51,11 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
     from ai.risk_engine.risk_calculator import calculate_dynamic_risk_score
     path_risk_score, path_severity = calculate_dynamic_risk_score(valid_findings, detected_services=discovered_hosts)
 
+    from ai.knowledge_base.mitre_mapping import validate_mitre_mapping
+
     add_node({
         "id": "mitre-start",
-        "label": "Internet Exposure",
+        "label": "Attacker Entry Point",
         "subLabel": f"Host: {target_host} (Reachable via Public Network)",
         "kind": "asset",
         "severity": path_severity,
@@ -80,17 +82,18 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
         conf_score = f.get("confidence_score", 50)
         conf = f.get("confidence_level", "Medium")
         
-        # Determine MITRE mapping based on evidence
-        mitre_tech = "T1190 - Exploit Public-Facing Application" if cve != "N/A" and sev in ("High", "Critical") else ""
-        if "root" in f.get("title", "").lower() or "password auth enabled and root login: yes" in str(f.get("evidence", [])).lower():
-            mitre_tech = "T1078 - Valid Accounts"
-        if service in ("mysql", "mongodb", "postgresql", "redis", "elasticsearch"):
-            mitre_tech = "T1213 - Data from Information Repositories" if not mitre_tech else mitre_tech
+        mitre_obj = validate_mitre_mapping(
+            service=service,
+            cve=cve,
+            exposure_reason=str(f.get("evidence", "")),
+            candidate_technique=f.get("mitre", "")
+        )
+        mitre_tech = f"{mitre_obj['id']} - {mitre_obj['name']}"
             
         svc_id = f"service-{_slugify(host)}-{port}"
         add_node({
             "id": svc_id,
-            "label": f"{service.upper()} Service",
+            "label": f"Exposed Service: {service.upper()}",
             "subLabel": f"Port {port}",
             "kind": "service",
             "host": host,
@@ -104,7 +107,7 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
         fnd_id = f.get("finding_id", f"finding-{uuid.uuid4()}")
         add_node({
             "id": fnd_id,
-            "label": f.get("title", "Finding"),
+            "label": f"Vulnerability: {f.get('title', 'Finding')}",
             "subLabel": f"Severity: {sev}",
             "kind": "finding",
             "host": host,
@@ -122,8 +125,8 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
             cve_id_node = f"cve-{_slugify(cve)}-{port}"
             add_node({
                 "id": cve_id_node,
-                "label": cve,
-                "subLabel": f"{sev} Vulnerability",
+                "label": f"CVE: {cve}",
+                "subLabel": f"{sev} Rating",
                 "kind": "cve",
                 "severity": sev,
                 "confidence_score": conf_score,
@@ -138,8 +141,8 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
                 mitre_id = f"mitre-tech-{_slugify(mitre_tech)}-{port}"
                 add_node({
                     "id": mitre_id,
-                    "label": mitre_tech,
-                    "subLabel": f"Tactics: {mitre_tech.split(' - ')[0]}",
+                    "label": f"MITRE Technique: {mitre_tech}",
+                    "subLabel": f"Tactic: {mitre_obj.get('tactic', 'Discovery')}",
                     "kind": "mitre",
                     "mitre": mitre_tech,
                     "evidence": f"Mapped {mitre_tech} for {cve} on {service}",
@@ -154,8 +157,8 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
             mitre_id = f"mitre-tech-{_slugify(mitre_tech)}-{port}"
             add_node({
                 "id": mitre_id,
-                "label": mitre_tech,
-                "subLabel": f"Tactics: {mitre_tech.split(' - ')[0]}",
+                "label": f"MITRE Technique: {mitre_tech}",
+                "subLabel": f"Tactic: {mitre_obj.get('tactic', 'Discovery')}",
                 "kind": "mitre",
                 "mitre": mitre_tech,
                 "evidence": f"Mapped {mitre_tech} for finding on {service}",
@@ -175,7 +178,7 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
         if "t1190" in m_id.lower() and cve_id != "N/A" and sev in ("High", "Critical") and not has_ia:
             add_node({
                 "id": "chain-ia",
-                "label": "Initial Access",
+                "label": "Attack Objective: Initial Access",
                 "subLabel": f"Exploitation on {f.get('service')}",
                 "kind": "chain",
                 "severity": sev,
@@ -198,7 +201,7 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
         if not has_pe and ("root" in title_lower or "admin" in title_lower or "auth bypass" in title_lower or "t1078" in m_id.lower()):
             add_node({
                 "id": "chain-pe",
-                "label": "Privilege Escalation",
+                "label": "Attack Objective: Privilege Escalation",
                 "subLabel": f"Elevation via {f.get('service')}",
                 "kind": "chain",
                 "severity": "Critical",
@@ -222,7 +225,7 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
             if not has_lm and svc in ("ssh", "smb", "rdp", "winrm"):
                 add_node({
                     "id": "chain-lm",
-                    "label": "Lateral Movement",
+                    "label": "Attack Objective: Lateral Movement",
                     "subLabel": f"Pivoting via {svc}",
                     "kind": "chain",
                     "severity": "High",
@@ -244,7 +247,7 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
         if not has_sde and svc in ("mysql", "mongodb", "postgresql", "redis", "elasticsearch"):
             add_node({
                 "id": "chain-sde",
-                "label": "Sensitive Data Exposure",
+                "label": "Attack Objective: Sensitive Data Exposure",
                 "subLabel": f"Data exfiltration from {svc}",
                 "kind": "chain",
                 "severity": "High",
@@ -265,7 +268,7 @@ def build_chains(risk_findings: List[Dict[str, Any]], discovered_hosts: List[Dic
         rem_id = rem.get("id") or f"rem-{uuid.uuid4()}"
         add_node({
             "id": rem_id,
-            "label": rem.get("title", "Remediation"),
+            "label": f"Remediation: {rem.get('title', 'Remediation')}",
             "subLabel": "Action Item",
             "kind": "remediation",
             "fix_action": rem.get("action"),

@@ -6,6 +6,27 @@ This document tracks known issues, bug reports, root cause analyses, and resolut
 
 ## Resolved Issues
 
+### Bug ID: BUG-016
+- **Issue:** Production Audit Pass: Remediation UI displayed empty fields; duplicate SMB findings were created on ports 139 & 445; executive summary printed raw finding lists; MySQL database exposures mapped falsely to T1213; Risk Dashboard lacked driver explanations; attack chain terminology was confusing.
+- **Cause:**
+  1. Remediation schema in `build_remediation` lacked normalized property keys (`why_it_matters`, `recommendation`, `mitre`, `cwe`, `priority`, `confidence`) expected by `Remediation.jsx`.
+  2. Multi-port findings of the same service category were not deduplicated post rule application.
+  3. `analyze_results` printed `1. Finding A, 2. Finding B` instead of a professional executive narrative.
+  4. KB_STORE `RULE_016` mapped Elasticsearch to `T1213 Data from Information Repositories` and lacked MITRE mapping validation.
+  5. `build_dynamic_risk_dashboard` omitted `riskDrivers` and `riskBreakdown` calculations.
+  6. Graph node labels used generic terms instead of SOC-oriented hierarchy.
+- **Status:** `Fixed`
+- **Fix:**
+  1. Standardized remediation schema in `build_remediation` with alias fallbacks and added `"Not available"` UI defaults in `Remediation.jsx`.
+  2. Implemented `correlate_and_deduplicate_findings` in `correlator.py` merging multi-port exposures while preserving all evidence lines.
+  3. Upgraded `analyze_results` to produce a 3-paragraph executive narrative.
+  4. Corrected Elasticsearch mapping to `T1046` and implemented `validate_mitre_mapping` in `mitre_mapping.py`.
+  5. Added `riskDrivers` and `riskBreakdown` calculation in `risk_calculator.py` and rendered them in `RiskDashboard.jsx`.
+  6. Updated labels to `"Attack Graph Entities"` and `Attacker Entry Point` → `Exposed Service` → `Vulnerability` → `MITRE Technique` → `Attack Objective` → `Remediation`.
+  7. Verified all 17 automated tests pass in `test_agent_system.py`.
+
+---
+
 ### Bug ID: BUG-011
 - **Issue:** Investigations disappear after page refresh or cache eviction; Supabase investigations table rows not returned on reload.
 - **Cause:**

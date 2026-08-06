@@ -213,13 +213,13 @@ export default function Remediation() {
                       <h3 className={`text-base font-semibold ${
                         item.completed ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text)]'
                       }`}>
-                        {item.title}
+                        {item.title || item.finding_title || 'Not available'}
                       </h3>
                     </div>
                     <div className="flex gap-2 items-center flex-wrap">
-                      <SeverityChip severity={item.severity} />
+                      <SeverityChip severity={item.severity || 'High'} />
                       <span className="text-xs font-semibold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)] px-2.5 py-0.5 rounded-full">
-                        {item.confidence} confidence
+                        {item.confidence || 'High'} confidence
                       </span>
                     </div>
                   </div>
@@ -230,7 +230,9 @@ export default function Remediation() {
                         <AlertTriangle className="w-4 h-4 text-[var(--warning)]" />
                         Why it matters
                       </p>
-                      <p className="text-sm text-[var(--text-muted)] leading-relaxed">{item.why}</p>
+                      <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                        {item.why_it_matters || item.why || 'Not available'}
+                      </p>
                     </div>
                     <div className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-4">
                       <p className="text-sm font-semibold text-[var(--text)] flex items-center gap-2 mb-2">
@@ -238,7 +240,7 @@ export default function Remediation() {
                         Recommended fix
                       </p>
                       <code className="text-sm text-[var(--code-text)] font-mono block whitespace-pre-wrap break-words bg-[var(--surface)] border border-[var(--border)] rounded p-2">
-                        {item.fix}
+                        {item.recommendation || item.fix || item.action || 'Not available'}
                       </code>
                     </div>
                   </div>
@@ -247,26 +249,29 @@ export default function Remediation() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-[var(--text-muted)]">MITRE</span>
                       <span className="text-[var(--text)] font-mono text-xs bg-[var(--surface-2)] px-2 py-0.5 rounded border border-[var(--border)]">
-                        {item.mitre}
+                        {item.mitre || 'Not available'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-[var(--text-muted)]">CWE</span>
                       <span className="text-[var(--text)] font-mono text-xs bg-[var(--surface-2)] px-2 py-0.5 rounded border border-[var(--border)]">
-                        {item.cwe}
+                        {item.cwe || 'Not available'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-[var(--text-muted)]">Difficulty</span>
                       <span className={`font-semibold ${difficultyText[item.difficulty] || 'text-[var(--text-muted)]'}`}>
-                        {item.difficulty}
+                        {item.difficulty || 'Not available'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 ml-auto">
                       <Target className="w-4 h-4 text-[var(--text-muted)]" />
-                      <span className="text-[var(--brand)] font-semibold">{item.improvement}</span>
+                      <span className="text-[var(--brand)] font-semibold">
+                        {item.impact_reduction || item.improvement || 'Not available'}
+                      </span>
                     </div>
                   </div>
+
                 </div>
               </div>
             </Card>

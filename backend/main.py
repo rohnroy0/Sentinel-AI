@@ -26,7 +26,7 @@ from ai.parser.nmap_parser import parse_nmap_text
 from ai.rule_engine.rules import apply_rules
 from ai.knowledge_base.kb import enrich_findings, KB_STORE
 from ai.risk_engine.risk_calculator import calculate_risk, get_overall_risk
-from ai.correlation_engine.correlator import correlate_findings
+from ai.correlation_engine.correlator import correlate_findings, correlate_and_deduplicate_findings
 from ai.attack_chain_builder.builder import build_chains
 from ai.llm.analyzer import analyze_results
 from ai.report_generator.generator import generate_report
@@ -275,6 +275,7 @@ async def run_investigation_pipeline(inv: InvestigationState):
         inv.updated_at = datetime.utcnow().isoformat()
         t0 = time.perf_counter()
         rule_findings, _ = apply_rules(parsed_data)
+        rule_findings = correlate_and_deduplicate_findings(rule_findings)
         rule_ms = (time.perf_counter() - t0) * 1000
         inv.detected_services = detected_services
 

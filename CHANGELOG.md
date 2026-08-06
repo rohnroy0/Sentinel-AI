@@ -4,7 +4,20 @@ All notable changes to Sentinel-AI will be documented in this file.
 
 ---
 
-## Current Version — v1.2.1 (Build 2026.08.06)
+## Current Version — v1.2.2 (Build 2026.08.06)
+
+### Production Audit, Remediation Schema, Finding Correlation & MITRE Validation Pass:
+- **Remediation Data Pipeline & Schema Normalization**: Standardized remediation contract (`id`, `title`, `finding_title`, `severity`, `priority`, `confidence`, `why_it_matters`, `why`, `recommendation`, `action`, `fix`, `mitre`, `cwe`, `difficulty`, `status`, `completed`, `host`, `port`, `cve`) with `"Not available"` graceful fallbacks in `Remediation.jsx`.
+- **Finding Deduplication & Correlation**: Added `correlate_and_deduplicate_findings` in `correlator.py` merging multi-port exposures (e.g. SMB port 139 and port 445) into single correlated findings (`"SMB Service Exposure"`, `port: "139, 445"`) while preserving all forensic evidence lines internally.
+- **SOC Executive Summary Generator**: Upgraded `analyze_results` in `analyzer.py` and `report_generation_tool.py` to produce a 3-paragraph executive narrative detailing overall risk, primary attack vector, most critical vulnerability, affected service inventory, and prioritized action recommendations.
+- **MITRE ATT&CK Accuracy & Validation**: Fixed `RULE_016` (Elasticsearch) mapping from `T1213` to `T1046`. Added `validate_mitre_mapping` preventing database scan exposures from falsely mapping to `T1213` exfiltration tactics.
+- **Risk Drivers & Calculation Breakdown**: Added `riskDrivers` array and `riskBreakdown` object in `risk_calculator.py`, rendered dynamically in `RiskDashboard.jsx`.
+- **SOC Terminology & Node Labels**: Updated UI metrics from `"Attack chain nodes"` to `"Attack Graph Entities"`, and node labels to `Attacker Entry Point` → `Exposed Service` → `Vulnerability` → `MITRE Technique` → `Attack Objective` → `Remediation`.
+- **17-Point Automated Verification Suite**: Expanded `backend/tests/test_agent_system.py` with Tests 14, 15, 16, and 17 covering deduplication, remediation schema, MITRE validation, and risk score scenarios.
+
+---
+
+## Version — v1.2.1 (Build 2026.08.06)
 
 ### Investigation Persistence & Supabase Restoration Fix:
 - **Database Restoration User Context Forwarding:** Resolved regression in `agent_controller.py` where `get_agent_status` failed to forward `user_id` to `get_investigation_by_id`, causing database restoration calls after cache eviction or page refresh to return `None` (404 Investigation Not Found).

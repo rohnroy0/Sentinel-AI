@@ -314,6 +314,41 @@ def build_dynamic_risk_dashboard(
         most_dangerous = f"Internet Exposure → {tf.get('service', 'Service').upper()} Port {tf.get('port', '80')} → {tf.get('title', 'Vulnerability')}"
         chain_nodes_count = 3
 
+    # Build Risk Drivers
+    risk_drivers = []
+    for f in sorted_findings:
+        title = f.get("title", "")
+        cve = f.get("cve_id") or f.get("cve")
+        svc = (f.get("service") or "").lower()
+        if "apache" in title.lower() or "2.4.49" in title.lower() or "cve-2021-41773" in str(cve).lower():
+            risk_drivers.append("+ Apache RCE vulnerability detected")
+        elif "smb" in svc or "smb" in title.lower() or "139" in str(f.get("port")) or "445" in str(f.get("port")):
+            risk_drivers.append("+ SMB externally exposed")
+        elif "rdp" in svc or "3389" in str(f.get("port")):
+            risk_drivers.append("+ RDP externally exposed")
+        elif any(db_kw in svc for db_kw in ["mysql", "postgres", "redis", "mongodb", "elasticsearch"]):
+            risk_drivers.append("+ Database service publicly accessible")
+        elif "root" in title.lower():
+            risk_drivers.append("+ Root login enabled over SSH")
+        else:
+            risk_drivers.append(f"+ {title} on port {f.get('port')}")
+
+    # Remove duplicates while preserving order
+    unique_drivers = []
+    for d in risk_drivers:
+        if d not in unique_drivers:
+            unique_drivers.append(d)
+
+    if not unique_drivers:
+        unique_drivers.append("+ External network service active")
+
+    risk_breakdown = {
+        "criticalFindings": {"count": counts["Critical"], "weight": 25.0, "impact": counts["Critical"] * 25.0},
+        "highFindings": {"count": counts["High"], "weight": 14.0, "impact": counts["High"] * 14.0},
+        "mediumFindings": {"count": counts["Medium"], "weight": 6.0, "impact": counts["Medium"] * 6.0},
+        "exposureFactors": {"description": f"{len(services_list)} external service(s) detected", "impact": round(min(8.0, len(services_list) * 1.5), 1)}
+    }
+
     return {
         "overallRisk": level,
         "overallScore": score,
@@ -322,6 +357,8 @@ def build_dynamic_risk_dashboard(
         "topServices": services_list[:5],
         "mostDangerousPath": most_dangerous,
         "attackChainNodesCount": chain_nodes_count,
+        "riskDrivers": unique_drivers[:6],
+        "riskBreakdown": risk_breakdown,
         "distribution": [
             {"name": "Critical", "value": counts["Critical"], "color": "#EF4444"},
             {"name": "High", "value": counts["High"], "color": "#F97316"},

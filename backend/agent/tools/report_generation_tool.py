@@ -1,4 +1,5 @@
-from typing import Dict, Any, List
+from typing import List, Dict, Any
+from ai.llm.analyzer import analyze_results
 from ai.report_generator.generator import generate_report
 
 def run(discovered_hosts: List[Dict[str, Any]], 
@@ -10,11 +11,7 @@ def run(discovered_hosts: List[Dict[str, Any]],
     Tool: Report Generation Tool
     Wraps existing report generator module.
     """
-    llm_summary = (
-        f"Autonomous investigation completed for {len(discovered_hosts)} target host(s). "
-        f"Identified {len(vulnerabilities)} vulnerability finding(s). "
-        f"Overall risk assessment: {risk_data.get('overall_category', 'HIGH')}."
-    )
+    llm_summary = analyze_results(vulnerabilities, attack_chains)
     
     report = generate_report(
         findings=vulnerabilities,

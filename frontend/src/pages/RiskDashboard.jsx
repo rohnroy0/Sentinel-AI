@@ -128,12 +128,59 @@ export default function RiskDashboard() {
           accentText="text-[var(--warning)]"
         />
         <StatCard
-          label="Attack chain nodes"
-          value={data.attackChainNodesCount || (data.mostDangerousPath ? data.mostDangerousPath.split('→').length : 0)}
+          label="Attack Graph Entities"
+          value={data.graphNodesCount || data.attackChainNodesCount || (data.mostDangerousPath ? data.mostDangerousPath.split('→').length : 0)}
           icon={GitBranch}
           accentBg="bg-[var(--sidebar)]"
           accentText="text-[var(--brand-accent)]"
         />
+      </div>
+
+      {/* Risk Drivers & Score Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <SectionTitle eyebrow="Drivers" title="Key Risk Drivers" sub="Primary contributors to overall posture score" />
+          <div className="space-y-2.5">
+            {(data.riskDrivers || []).map((driver, idx) => (
+              <div
+                key={idx}
+                className="bg-[var(--bg)] border border-[var(--border)] p-3 rounded-lg flex items-center gap-3 text-sm font-medium text-[var(--text)]"
+              >
+                <div className="w-2 h-2 rounded-full bg-[var(--danger)] shrink-0" />
+                <span>{driver}</span>
+              </div>
+            ))}
+            {(!data.riskDrivers || data.riskDrivers.length === 0) && (
+              <div className="text-sm text-[var(--text-muted)] text-center py-4 bg-[var(--bg)] rounded-lg border border-[var(--border)]">
+                No specific high-risk drivers detected.
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <SectionTitle eyebrow="Calculation" title="Risk Score Breakdown" sub="Weighted severity and surface additive" />
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center bg-[var(--bg)] p-3 rounded-lg border border-[var(--border)]">
+              <span className="text-[var(--text)] font-medium">Critical Findings</span>
+              <span className="font-mono text-xs text-[var(--danger)] font-bold">
+                {data.counts?.Critical || 0} × 25.0 pts
+              </span>
+            </div>
+            <div className="flex justify-between items-center bg-[var(--bg)] p-3 rounded-lg border border-[var(--border)]">
+              <span className="text-[var(--text)] font-medium">High Findings</span>
+              <span className="font-mono text-xs text-[var(--warning)] font-bold">
+                {data.counts?.High || 0} × 14.0 pts
+              </span>
+            </div>
+            <div className="flex justify-between items-center bg-[var(--bg)] p-3 rounded-lg border border-[var(--border)]">
+              <span className="text-[var(--text)] font-medium">Exposure Factors</span>
+              <span className="font-mono text-xs text-[var(--brand)] font-bold">
+                {data.topServices?.length || 0} external services
+              </span>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Distribution + Top findings */}
@@ -232,7 +279,10 @@ export default function RiskDashboard() {
       {/* Most dangerous path */}
       {data.mostDangerousPath && (
         <Card>
-          <SectionTitle eyebrow="Path" title="Most dangerous attack path" />
+          <SectionTitle
+            eyebrow="Path"
+            title={`Most Dangerous Attack Path: ${data.mostDangerousPath.split('→').length} stages`}
+          />
           <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-4 flex items-center gap-3 overflow-x-auto">
             {data.mostDangerousPath.split('→').map((node, idx, arr) => (
               <div key={idx} className="flex items-center gap-3">

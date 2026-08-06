@@ -297,8 +297,77 @@ PORT     STATE SERVICE VERSION
     print(f"[OK] Memory Health Endpoint Output: {mem_resp}")
     print("[OK] TEST 13 PASSED: Memory monitoring endpoint verified successfully!")
 
+    # ----------------------------------------------------
+    # TEST 14: SMB Duplicate Finding Correlation Test
+    # ----------------------------------------------------
+    print("\n[TEST 14] Testing SMB Finding Deduplication & Correlation...")
+    from ai.correlation_engine.correlator import correlate_and_deduplicate_findings
+    smb_findings = [
+        {"host": "192.168.1.10", "port": "139", "service": "netbios-ssn", "rule_id": "RULE_005", "title": "Windows Server / SMB Service Exposed", "severity": "High", "evidence": ["Host: 192.168.1.10 | Port 139"]},
+        {"host": "192.168.1.10", "port": "445", "service": "microsoft-ds", "rule_id": "RULE_005", "title": "Windows Server / SMB Service Exposed", "severity": "High", "evidence": ["Host: 192.168.1.10 | Port 445"]}
+    ]
+    merged = correlate_and_deduplicate_findings(smb_findings)
+    assert len(merged) == 1, f"Expected 1 correlated finding, got {len(merged)}"
+    assert merged[0]["title"] == "SMB Service Exposure", f"Expected title 'SMB Service Exposure', got '{merged[0]['title']}'"
+    assert merged[0]["port"] == "139, 445", f"Expected merged port string '139, 445', got '{merged[0]['port']}'"
+    assert merged[0]["affected_ports"] == ["139", "445"], "Expected affected_ports list ['139', '445']"
+    assert len(merged[0]["evidence"]) >= 2, "Forensic evidence items must be preserved"
+    print("[OK] TEST 14 PASSED: SMB duplicate findings correlated cleanly without data loss!")
+
+    # ----------------------------------------------------
+    # TEST 15: Remediation Schema Normalization Test
+    # ----------------------------------------------------
+    print("\n[TEST 15] Testing Remediation Schema Normalization & Fallbacks...")
+    from services.remediation import build_remediation
+    rems = build_remediation(smb_findings)
+    assert len(rems) > 0, "build_remediation must return remediation objects"
+    req_keys = ["id", "title", "finding_title", "severity", "priority", "confidence", "why_it_matters", "why", "recommendation", "action", "fix", "mitre", "cwe", "difficulty", "status", "completed", "host", "port", "cve"]
+    for r in rems:
+        for k in req_keys:
+            assert k in r, f"Remediation object missing required key '{k}'"
+            assert r[k] is not None, f"Remediation key '{k}' must not be None"
+    print("[OK] TEST 15 PASSED: Remediation schema contract fully normalized!")
+
+    # ----------------------------------------------------
+    # TEST 16: MITRE ATT&CK Mapping Accuracy & Validation Test
+    # ----------------------------------------------------
+    print("\n[TEST 16] Testing MITRE Mapping Accuracy & Validation...")
+    from ai.knowledge_base.mitre_mapping import validate_mitre_mapping
+    mysql_mitre = validate_mitre_mapping(service="mysql", candidate_technique="T1213 - Data from Information Repositories")
+    assert mysql_mitre["id"] != "T1213", "MySQL database scan exposure must NOT map to T1213"
+    assert mysql_mitre["id"] in ["T1046", "T1021", "T1078"], f"MySQL exposure must map to T1046/T1021/T1078, got {mysql_mitre['id']}"
+
+    apache_mitre = validate_mitre_mapping(service="http", cve="CVE-2021-41773")
+    assert apache_mitre["id"] == "T1190", f"Public web CVE must map to T1190, got {apache_mitre['id']}"
+    print("[OK] TEST 16 PASSED: MITRE ATT&CK mappings validated accurately!")
+
+    # ----------------------------------------------------
+    # TEST 17: Risk Scoring Scenario Validation
+    # ----------------------------------------------------
+    print("\n[TEST 17] Testing Risk Scoring Scenarios (SSH-only vs Apache CVE vs Multi-service)...")
+    from ai.risk_engine.risk_calculator import calculate_dynamic_risk_score
+    # Scenario A: Only SSH open
+    score_a, level_a = calculate_dynamic_risk_score([{"severity": "Low", "port": 22, "service": "ssh"}], detected_services=[{"port": 22, "service": "ssh"}])
+    assert score_a < 45, f"Scenario A (SSH only) score ({score_a}) should be Low/Medium"
+
+    # Scenario B: Apache vulnerable CVE
+    score_b, level_b = calculate_dynamic_risk_score([{"severity": "Critical", "port": 80, "service": "http", "cve": "CVE-2021-41773"}], detected_services=[{"port": 80, "service": "http"}])
+    assert score_b >= 75, f"Scenario B (Apache RCE CVE) score ({score_b}) should be High/Critical"
+
+    # Scenario C: SMB + RDP + Database + CVE
+    multi_findings = [
+        {"severity": "Critical", "port": 80, "service": "http", "cve": "CVE-2021-41773"},
+        {"severity": "High", "port": 445, "service": "smb"},
+        {"severity": "High", "port": 3389, "service": "rdp"},
+        {"severity": "Medium", "port": 3306, "service": "mysql"}
+    ]
+    score_c, level_c = calculate_dynamic_risk_score(multi_findings, detected_services=[{"port": 80}, {"port": 445}, {"port": 3389}, {"port": 3306}])
+    assert score_c >= 85 and level_c == "Critical", f"Scenario C (Multi-service RCE) score ({score_c}, {level_c}) should be Critical"
+    print(f"[OK] Scenario scores verified: SSH-only={score_a} ({level_a}), Apache CVE={score_b} ({level_b}), Multi-service={score_c} ({level_c})")
+    print("[OK] TEST 17 PASSED: Risk engine scenarios operating as expected!")
+
     print("\n" + "=" * 60)
-    print("ALL 13 PRODUCTION VERIFICATION TESTS PASSED SUCCESSFULLY!")
+    print("ALL 17 PRODUCTION VERIFICATION TESTS PASSED SUCCESSFULLY!")
     print("=" * 60)
 
 if __name__ == "__main__":
