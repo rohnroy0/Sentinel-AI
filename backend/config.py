@@ -15,9 +15,10 @@ class Config:
     )
     
     # Supabase Production Credentials
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", os.getenv("VITE_SUPABASE_URL", "")))
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_KEY", os.getenv("SUPABASE_ANON_KEY", "")))
     JWT_SECRET: str = os.getenv("JWT_SECRET", os.getenv("SUPABASE_JWT_SECRET", ""))
+
     
     # Production CORS Allowed Origins (Comma-separated allowed domains)
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")

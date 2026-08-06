@@ -56,27 +56,40 @@ class SupabaseAdapter(BaseDatabaseAdapter):
         except Exception:
             clean_state = state
 
-        data = {
+        core_data = {
             "id": inv_id,
             "user_id": user_id,
             "scan_name": user_goal,
-            "user_goal": user_goal,
             "status": status,
             "risk_score": risk_score,
-            "scan_data": state.get("scan_data", ""),
             "full_state": clean_state
         }
 
         try:
             if hasattr(self.client, "table"):
-                self.client.table("investigations").upsert(data).execute()
+                self.client.table("investigations").upsert(core_data).execute()
             else:
-                self.client.from_table("investigations").upsert(data).execute()
+                self.client.from_table("investigations").upsert(core_data).execute()
             logger.info(f"SupabaseAdapter SAVE SUCCESS: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase")
             return True
         except Exception as e:
-            logger.error(f"SupabaseAdapter SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase | Error: {e}", exc_info=True)
-            return False
+            logger.warning(f"SupabaseAdapter core upsert attempt failed: {e}. Attempting fallback with optional fields...")
+            data_with_extras = {
+                **core_data,
+                "user_goal": user_goal,
+                "scan_data": state.get("scan_data", "")
+            }
+            try:
+                if hasattr(self.client, "table"):
+                    self.client.table("investigations").upsert(data_with_extras).execute()
+                else:
+                    self.client.from_table("investigations").upsert(data_with_extras).execute()
+                logger.info(f"SupabaseAdapter SAVE SUCCESS (fallback): INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase")
+                return True
+            except Exception as e2:
+                logger.error(f"SupabaseAdapter SAVE FAILURE: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase | Error: {e2}", exc_info=True)
+                return False
+
 
 
     def get_investigation_by_id(self, inv_id: str, user_id: str) -> Optional[Dict[str, Any]]:
