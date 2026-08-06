@@ -1,1 +1,2 @@
-web: gunicorn --pythonpath backend main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+web: gunicorn --pythonpath backend main:app -k uvicorn.workers.UvicornWorker --workers 1 --timeout 300 --bind 0.0.0.0:$PORT
+

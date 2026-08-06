@@ -61,7 +61,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-investigations = {}
+import gc
+import sys
+
+class BoundedLRUCache(dict):
+    """Bounded LRU Cache to cap RAM usage at 20 active investigation states."""
+    def __init__(self, max_size: int = 20, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_size = max_size
+        self._order = []
+
+    def __setitem__(self, key, value):
+        if key in self:
+            self._order.remove(key)
+        self._order.append(key)
+        super().__setitem__(key, value)
+        while len(self._order) > self.max_size:
+            oldest = self._order.pop(0)
+            super().pop(oldest, None)
+
+    def get(self, key, default=None):
+        if key in self:
+            self._order.remove(key)
+            self._order.append(key)
+            return super().get(key, default)
+        return default
+
+    def pop(self, key, default=None):
+        if key in self._order:
+            self._order.remove(key)
+        return super().pop(key, default)
+
+investigations = BoundedLRUCache(max_size=20)
 
 class UploadRequest(BaseModel):
     content: str
@@ -110,6 +141,46 @@ class InvestigationState:
 
 
 # ─── Static Endpoints ──────────────────────────────────────────────────────
+
+def get_system_memory_usage():
+    try:
+        import psutil
+        process = psutil.Process()
+        rss_bytes = process.memory_info().rss
+        mem_mb = round(rss_bytes / (1024 * 1024), 2)
+        system_mem = psutil.virtual_memory()
+        return {
+            "rss_mb": mem_mb,
+            "system_percent": system_mem.percent,
+            "status": "normal" if mem_mb < 450 else "warning"
+        }
+    except Exception:
+        try:
+            import resource
+            usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            if sys.platform != 'darwin':
+                mem_mb = round(usage / 1024, 2)
+            else:
+                mem_mb = round(usage / (1024 * 1024), 2)
+            return {"rss_mb": mem_mb, "system_percent": "N/A", "status": "normal" if mem_mb < 450 else "warning"}
+        except Exception:
+            return {"rss_mb": "N/A", "system_percent": "N/A", "status": "ok"}
+
+@app.get("/health/memory")
+@app.get("/api/health/memory")
+async def memory_health():
+    from agent.agent_controller import agent_investigations
+    mem_info = get_system_memory_usage()
+    return {
+        "application_status": "ok",
+        "database_engine": config.DB_ENGINE,
+        "memory_usage": mem_info,
+        "cache_size": {
+            "deterministic_investigations": len(investigations),
+            "agent_investigations": len(agent_investigations),
+            "max_limit": 20
+        }
+    }
 
 @app.get("/health", response_model=HealthResponse)
 @app.get("/api/health", response_model=HealthResponse)
@@ -438,6 +509,8 @@ async def run_investigation_pipeline(inv: InvestigationState):
             save_deterministic_investigation(inv)
         except Exception:
             pass
+    finally:
+        gc.collect()
 
 
 # ─── Investigation Summary ─────────────────────────────────────────────────

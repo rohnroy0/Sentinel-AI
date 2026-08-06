@@ -1,3 +1,4 @@
+import gc
 from agent.state import AgentState
 from agent.tools import (
     nmap_analysis_tool,
@@ -39,6 +40,7 @@ async def execute_tools(state: AgentState) -> AgentState:
         elif tool_name == "attack_graph_builder":
             res = attack_graph_tool.run(state.get("discovered_hosts", []), state.get("vulnerabilities", []))
             tool_results["attack_graph_builder"] = res
+            gc.collect()
             
         elif tool_name == "threat_intelligence":
             res = threat_intelligence_tool.run(state.get("vulnerabilities", []))
@@ -56,6 +58,7 @@ async def execute_tools(state: AgentState) -> AgentState:
             )
             tool_results["report_generator"] = res
             state["final_report"] = res.get("report", {})
+            gc.collect()
             
         state["reasoning_steps"].append({
             "stage": "Tool Execution",

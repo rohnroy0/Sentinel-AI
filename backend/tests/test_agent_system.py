@@ -285,10 +285,20 @@ PORT     STATE SERVICE VERSION
     intel = chains["intelligence"]
     assert intel.get("risk_score") is not None and intel.get("risk_score") > 0, "Multi-vulnerability chain must compute valid risk score"
     print(f"[OK] Built Attack Journey with risk score: {intel.get('risk_score')}")
-    print("[OK] TEST 12 PASSED: Attack Chain MITRE stage evidence validated successfully!")
+    # ----------------------------------------------------
+    # TEST 13: Memory Monitoring & Bounded Cache Test
+    # ----------------------------------------------------
+    print("\n[TEST 13] Testing Memory Monitoring & Bounded LRU Cache Endpoint...")
+    from main import memory_health
+    mem_resp = await memory_health()
+    assert mem_resp.get("application_status") == "ok", "Memory health endpoint must return ok status"
+    assert "memory_usage" in mem_resp, "Memory health endpoint must contain memory_usage"
+    assert mem_resp.get("cache_size", {}).get("max_limit") == 20, "Cache max_limit must be 20"
+    print(f"[OK] Memory Health Endpoint Output: {mem_resp}")
+    print("[OK] TEST 13 PASSED: Memory monitoring endpoint verified successfully!")
 
     print("\n" + "=" * 60)
-    print("ALL 12 PRODUCTION VERIFICATION TESTS PASSED SUCCESSFULLY!")
+    print("ALL 13 PRODUCTION VERIFICATION TESTS PASSED SUCCESSFULLY!")
     print("=" * 60)
 
 if __name__ == "__main__":

@@ -98,7 +98,7 @@ Render can deploy either from the repository root (Default) or from the `backend
 2. Connect your GitHub repository (`Sentinel-AI`).
 3. Leave **Root Directory** blank (defaults to repository root `.`).
 4. **Build Command:** `pip install -r requirements.txt`
-5. **Start Command:** `gunicorn --pythonpath backend main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT`
+5. **Start Command:** `gunicorn --pythonpath backend main:app -k uvicorn.workers.UvicornWorker --workers 1 --timeout 300 --bind 0.0.0.0:$PORT`
 6. Add the environment variables listed in Section 2 under **Environment Variables**.
 7. Click **Create Web Service**.
 
@@ -106,7 +106,7 @@ Render can deploy either from the repository root (Default) or from the `backend
 If you set **Root Directory** in Render Settings to `backend`:
 - **Root Directory:** `backend`
 - **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT`
+- **Start Command:** `gunicorn main:app -k uvicorn.workers.UvicornWorker --workers 1 --timeout 300 --bind 0.0.0.0:$PORT`
 
 
 #### Option B: Docker Container Deployment (Fly.io / Render Docker)

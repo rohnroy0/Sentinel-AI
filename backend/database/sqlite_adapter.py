@@ -205,20 +205,13 @@ class SQLiteAdapter(BaseDatabaseAdapter):
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "SELECT * FROM investigations WHERE user_id = ? ORDER BY created_at DESC",
+                "SELECT id, user_goal, status, vulnerabilities, discovered_hosts, created_at, user_id FROM investigations WHERE user_id = ? ORDER BY created_at DESC",
                 (user_id,)
             )
             rows = cursor.fetchall()
             results = []
             for r in rows:
                 row_dict = dict(r)
-                full_state = {}
-                if row_dict.get("full_state"):
-                    try:
-                        full_state = json.loads(row_dict["full_state"])
-                    except Exception:
-                        pass
-
                 results.append({
                     "investigation_id": row_dict["id"],
                     "user_goal": row_dict.get("user_goal", ""),

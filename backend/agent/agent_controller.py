@@ -5,8 +5,38 @@ from agent.state import AgentState
 from agent.graph import create_investigation_graph
 from database.models import save_investigation, get_investigation_by_id
 
-# In-memory session runtime cache & background task tracker
-agent_investigations: Dict[str, AgentState] = {}
+import gc
+
+class BoundedLRUCache(dict):
+    """Bounded LRU Cache to cap RAM usage at 20 active investigation states."""
+    def __init__(self, max_size: int = 20, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_size = max_size
+        self._order = []
+
+    def __setitem__(self, key, value):
+        if key in self:
+            self._order.remove(key)
+        self._order.append(key)
+        super().__setitem__(key, value)
+        while len(self._order) > self.max_size:
+            oldest = self._order.pop(0)
+            super().pop(oldest, None)
+
+    def get(self, key, default=None):
+        if key in self:
+            self._order.remove(key)
+            self._order.append(key)
+            return super().get(key, default)
+        return default
+
+    def pop(self, key, default=None):
+        if key in self._order:
+            self._order.remove(key)
+        return super().pop(key, default)
+
+# In-memory session runtime cache (Bounded to 20 items) & background task tracker
+agent_investigations: Dict[str, AgentState] = BoundedLRUCache(max_size=20)
 _background_tasks = set()
 
 async def start_autonomous_investigation(goal: str, scan_data: str = None, user_id: str = None) -> str:
@@ -61,6 +91,8 @@ async def _run_agent_workflow(inv_id: str):
         print(f"[_run_agent_workflow ERROR] {e}")
         import traceback
         traceback.print_exc()
+    finally:
+        gc.collect()
 
 
 def get_agent_status(inv_id: str) -> Optional[Dict[str, Any]]:

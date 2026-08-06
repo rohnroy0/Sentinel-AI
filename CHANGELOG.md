@@ -4,7 +4,21 @@ All notable changes to Sentinel-AI will be documented in this file.
 
 ---
 
-## Current Version — v1.1.0 (Build 2026.08.05)
+## Current Version — v1.1.1 (Build 2026.08.06)
+
+### Render Memory Limit Optimization & Resource Controls:
+- **Single Worker Process Configuration:** Updated Gunicorn/Uvicorn start commands in root `Procfile`, `backend/Procfile`, `backend/Dockerfile`, and `HOSTING.md` to run `--workers 1` with `--timeout 300`, preventing process RAM duplication under Render's 512MB RAM cap.
+- **Bounded LRU Session Caches:** Replaced unlimited in-memory global dictionaries (`investigations`, `agent_investigations`) with custom 20-item Bounded LRU caches, preventing memory growth over time.
+- **Database Fallback & Persistence:** Ensured cache eviction delegates seamlessly to persistent database storage (`sqlite_adapter.py` / `supabase_adapter.py`) via `get_investigation_by_id`.
+- **Memoized Local CVE Database:** Added module-level memoized caching (`_LOCAL_CVE_CACHE`) in `cve_lookup.py` to eliminate repeated disk reads and JSON parsing on every CVE lookup.
+- **Optimized Summary Queries:** Replaced `SELECT *` in `get_all_investigations` with lightweight summary column selection, avoiding loading heavy `full_state`, graph, and scan text blobs into RAM during history list queries.
+- **Explicit Pipeline Garbage Collection:** Added `gc.collect()` at key execution boundaries (`run_investigation_pipeline`, `_run_agent_workflow`, and heavy graph/report tools) to immediately free unreferenced memory objects.
+- **Memory Monitoring Endpoints:** Created `GET /health/memory` and `GET /api/health/memory` returning live RAM RSS metrics, cache utilization counts, database engine, and status.
+- **13-Point Automated Test Suite:** Expanded `backend/tests/test_agent_system.py` with Test 13 to verify memory monitoring endpoints and cache boundary constraints.
+
+---
+
+## Version — v1.1.0 (Build 2026.08.05)
 
 ### Features & Architecture Improvements added:
 - **Pluggable Database Adapter Architecture (`database/`):** Implemented an abstract repository pattern (`adapter.py`, `sqlite_adapter.py`, `supabase_adapter.py`, `repository.py`) supporting both SQLite (Development/Local) and Supabase Python SDK (Production/Cloud). Business logic is completely decoupled from specific database engines.

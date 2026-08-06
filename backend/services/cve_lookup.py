@@ -59,15 +59,22 @@ def is_vulnerable_version(detected_ver: str, affected_str: str) -> bool:
 logger = logging.getLogger(__name__)
 
 CACHE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "cve_cache.json")
+_LOCAL_CVE_CACHE = None
 
 def load_local_cache() -> Dict[str, Any]:
+    global _LOCAL_CVE_CACHE
+    if _LOCAL_CVE_CACHE is not None:
+        return _LOCAL_CVE_CACHE
+
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f).get("cve_database", {})
+                _LOCAL_CVE_CACHE = json.load(f).get("cve_database", {})
+                return _LOCAL_CVE_CACHE
         except Exception as e:
             logger.error(f"Failed to read local CVE cache: {e}")
-    return {}
+    _LOCAL_CVE_CACHE = {}
+    return _LOCAL_CVE_CACHE
 
 def lookup_vulnerabilities(service_name: str, version: str = "", product_name: str = "", os_info: str = "") -> List[Dict[str, Any]]:
     """

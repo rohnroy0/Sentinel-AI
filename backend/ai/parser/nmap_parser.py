@@ -2,7 +2,7 @@ import re
 
 def parse_nmap_text(content: str):
     open_ports = []
-    lines = content.split('\n')
+    lines = content.splitlines()
     current_port = None
     current_host = "Unknown Host"
     

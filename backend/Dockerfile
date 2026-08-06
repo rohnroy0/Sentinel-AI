@@ -20,4 +20,5 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["gunicorn", "main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "--workers", "1", "--timeout", "300", "--bind", "0.0.0.0:8000"]
+

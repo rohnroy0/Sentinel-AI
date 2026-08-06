@@ -136,22 +136,22 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             return []
 
         try:
+            fields = "id, user_goal, scan_name, status, risk_score, created_at, user_id"
             if hasattr(self.client, "table"):
-                res = self.client.table("investigations").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+                res = self.client.table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
             else:
-                res = self.client.from_table("investigations").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+                res = self.client.from_table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
 
             rows = getattr(res, "data", []) or []
             results = []
             for r in rows:
-                full_state = r.get("full_state") or {}
-                user_goal = r.get("user_goal") or r.get("scan_name") or full_state.get("user_goal", "")
+                user_goal = r.get("user_goal") or r.get("scan_name") or "Autonomous Investigation"
                 results.append({
                     "investigation_id": r["id"],
                     "user_goal": user_goal,
                     "current_status": r.get("status", "Completed"),
-                    "vulnerabilities": full_state.get("vulnerabilities", full_state.get("findings", [])),
-                    "discovered_hosts": full_state.get("discovered_hosts", []),
+                    "vulnerabilities": [],
+                    "discovered_hosts": [],
                     "created_at": r.get("created_at"),
                     "user_id": r.get("user_id")
                 })

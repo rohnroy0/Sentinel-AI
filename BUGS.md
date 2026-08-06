@@ -163,6 +163,23 @@ This document tracks known issues, bug reports, root cause analyses, and resolut
   - Used HTML `<details>` and `<summary>` in `ChainNode` for compact default view and expandable full evidence/details.
   - Implemented `AutoFitBounds` hook triggering `fitView()` dynamically on layout updates.
 
+### Bug ID: BUG-015
+- **Issue:** Render Web Service "Sentinel-AI" exceeded its 512MB memory limit and automatically restarted during multi-scan investigations.
+- **Cause:** 
+  1. Gunicorn process configuration launched 4 worker processes (`-w 4`), quadrupling baseline Python/FastAPI memory usage on start.
+  2. Unlimited in-memory dictionaries `investigations={}` in `main.py` and `agent_investigations={}` in `agent_controller.py` held full scan contents, graphs, decision logs, and reports in RAM indefinitely.
+  3. `cve_lookup.py` re-read and JSON-parsed `cve_cache.json` from disk on every single CVE lookup call.
+  4. `get_all_investigations` executed `SELECT * FROM investigations`, loading heavy `full_state`, graph, and scan text blobs into RAM for all historical investigations during simple dashboard list queries.
+- **Status:** `Fixed`
+- **Fix:**
+  - Configured single worker mode (`--workers 1 --timeout 300`) across `Procfile`, `backend/Procfile`, `backend/Dockerfile`, and `HOSTING.md`.
+  - Replaced unlimited dictionaries with custom 20-item `BoundedLRUCache` in `main.py` and `agent_controller.py`, delegating cache misses to SQLite/Supabase persistent DB storage via `get_investigation_by_id`.
+  - Implemented memoized module cache (`_LOCAL_CVE_CACHE`) in `cve_lookup.py` for single-load CVE database access.
+  - Refactored `get_all_investigations` in `sqlite_adapter.py` and `supabase_adapter.py` to query lightweight summary columns (`id, user_goal, status, vulnerabilities, discovered_hosts, created_at, user_id`).
+  - Added explicit garbage collection (`gc.collect()`) after completing heavy investigation workflows and tool runs.
+  - Created `GET /health/memory` monitoring endpoint.
+  - Verified with 13 automated tests in `test_agent_system.py`.
+
 ## Active / Monitored Issues
 
 ### Bug ID: BUG-004
