@@ -34,16 +34,19 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
     if config.AUTH_MODE == "demo":
         if credentials and credentials.credentials.startswith("demo-token-"):
             user_id = credentials.credentials.replace("demo-token-", "")
+            print("AUTH USER:", user_id)
             logger.info(f"Authenticated demo user via token: {user_id}")
             return user_id
         elif credentials and credentials.credentials:
             # Token provided in demo mode
             user_id = f"demo-user-{credentials.credentials[:8]}"
+            print("AUTH USER:", user_id)
             logger.info(f"Authenticated demo user via generic token: {user_id}")
             return user_id
         else:
             # Explicit demo session ID fallback when header omitted in local dev UI
             demo_id = "demo-analyst-session"
+            print("AUTH USER:", demo_id)
             logger.info(f"Demo mode active: using session user {demo_id}")
             return demo_id
 
@@ -86,6 +89,7 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
                 detail="Invalid token: missing sub (user_id)"
             )
 
+        print("AUTH USER:", user_id)
         logger.info(f"Successfully authenticated Supabase user: {user_id}")
         return user_id
 

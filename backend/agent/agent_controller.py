@@ -65,6 +65,7 @@ async def start_autonomous_investigation(goal: str, scan_data: str = None, user_
         "user_id": user_id
     }
     
+    print("AGENT STATE USER:", state.get("user_id"))
     agent_investigations[inv_id] = state
     save_investigation(state)
     

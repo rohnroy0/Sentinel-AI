@@ -211,6 +211,7 @@ async def info():
 
 @app.post("/api/upload", response_model=UploadResponse)
 async def upload_scan(req: UploadRequest, user_id: str = Depends(get_current_user)):
+    print("CREATING INVESTIGATION USER:", user_id)
     req_content = req.content
     inv = InvestigationState(req_content)
     inv.user_id = user_id
@@ -839,6 +840,7 @@ class AgentInvestigateRequest(BaseModel):
 @app.post("/api/agent/investigate")
 async def start_agent_investigation(req: AgentInvestigateRequest, user_id: str = Depends(get_current_user)):
     """Starts a new autonomous investigation."""
+    print("CREATING INVESTIGATION USER:", user_id)
     inv_id = await start_autonomous_investigation(req.goal, req.scan_data, user_id=user_id)
     return {"investigation_id": inv_id, "status": "started"}
 

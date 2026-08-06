@@ -76,6 +76,7 @@ class SQLiteAdapter(BaseDatabaseAdapter):
     def save_investigation(self, state: Dict[str, Any]) -> bool:
         inv_id = state.get("investigation_id") or state.get("id") or str(uuid.uuid4())
         user_id = state.get("user_id")
+        print("SAVING INVESTIGATION USER:", user_id)
         logger.info(f"SQLiteAdapter SAVE START: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: sqlite")
 
         if not user_id:

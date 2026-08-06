@@ -34,6 +34,7 @@ class SupabaseAdapter(BaseDatabaseAdapter):
     def save_investigation(self, state: Dict[str, Any]) -> bool:
         inv_id = state.get("investigation_id") or state.get("id") or str(uuid.uuid4())
         user_id = state.get("user_id")
+        print("SAVING INVESTIGATION USER:", user_id)
         logger.info(f"SupabaseAdapter SAVE START: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase")
 
         if not user_id:
@@ -50,14 +51,16 @@ class SupabaseAdapter(BaseDatabaseAdapter):
         status = state.get("current_status") or state.get("status") or "Completed"
         risk_score = state.get("risk_dashboard", {}).get("overallScore", 0) if isinstance(state.get("risk_dashboard"), dict) else 0
 
+        findings_list = state.get("vulnerabilities", state.get("findings", []))
+        findings_count = len(findings_list) if isinstance(findings_list, list) else 0
+
+        state["findings_count"] = findings_count
+
         # Sanitize state dictionary to ensure PostgREST / JSON serialization compliance
         try:
             clean_state = json.loads(json.dumps(state, default=str))
         except Exception:
             clean_state = state
-
-        findings_list = state.get("vulnerabilities", state.get("findings", []))
-        findings_count = len(findings_list) if isinstance(findings_list, list) else 0
 
         core_data = {
             "id": inv_id,
@@ -65,7 +68,6 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             "scan_name": user_goal,
             "status": status,
             "risk_score": risk_score,
-            "findings_count": findings_count,
             "full_state": clean_state
         }
 
@@ -77,17 +79,16 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             logger.info(f"SupabaseAdapter SAVE SUCCESS: INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase")
             return True
         except Exception as e:
-            logger.warning(f"SupabaseAdapter core upsert attempt failed: {e}. Attempting fallback with optional fields...")
-            data_with_extras = {
+            logger.warning(f"SupabaseAdapter core upsert attempt failed: {e}. Attempting fallback with findings_count...")
+            data_with_count = {
                 **core_data,
-                "user_goal": user_goal,
-                "scan_data": state.get("scan_data", "")
+                "findings_count": findings_count
             }
             try:
                 if hasattr(self.client, "table"):
-                    self.client.table("investigations").upsert(data_with_extras).execute()
+                    self.client.table("investigations").upsert(data_with_count).execute()
                 else:
-                    self.client.from_table("investigations").upsert(data_with_extras).execute()
+                    self.client.from_table("investigations").upsert(data_with_count).execute()
                 logger.info(f"SupabaseAdapter SAVE SUCCESS (fallback): INVESTIGATION ID: {inv_id} | USER ID: {user_id} | DATABASE ENGINE: supabase")
                 return True
             except Exception as e2:
@@ -162,7 +163,7 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             return []
 
         try:
-            fields = "id, scan_name, user_goal, status, risk_score, created_at, user_id, findings_count"
+            fields = "id, scan_name, status, risk_score, created_at, user_id, full_state"
             try:
                 if hasattr(self.client, "table"):
                     res = self.client.table("investigations").select(fields).eq("user_id", user_id).order("created_at", desc=True).execute()
@@ -179,14 +180,16 @@ class SupabaseAdapter(BaseDatabaseAdapter):
             results = []
             for r in rows:
                 full_state = r.get("full_state") if isinstance(r.get("full_state"), dict) else {}
-                raw_goal = r.get("user_goal") or r.get("scan_name") or full_state.get("user_goal") or ""
+                raw_goal = r.get("user_goal") or r.get("scan_name") or full_state.get("user_goal") or full_state.get("scan_name") or ""
                 if not raw_goal or raw_goal in ("Deterministic Pipeline Investigation", "Autonomous Investigation"):
                     display_title = "Security Investigation"
                 else:
                     display_title = raw_goal
 
                 findings_count = r.get("findings_count")
-                if findings_count is None:
+                if findings_count is None and isinstance(full_state, dict):
+                    findings_count = full_state.get("findings_count")
+                if findings_count is None and isinstance(full_state, dict):
                     findings_list = full_state.get("vulnerabilities") or full_state.get("findings") or []
                     findings_count = len(findings_list) if isinstance(findings_list, list) else 0
 
@@ -199,7 +202,7 @@ class SupabaseAdapter(BaseDatabaseAdapter):
                     "status": r.get("status", "Completed"),
                     "current_status": r.get("status", "Completed"),
                     "risk_score": r.get("risk_score", 0),
-                    "findings_count": findings_count,
+                    "findings_count": findings_count or 0,
                     "vulnerabilities": [],
                     "discovered_hosts": [],
                     "created_at": r.get("created_at"),
