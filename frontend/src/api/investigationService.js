@@ -9,13 +9,22 @@ function getCachedOrFetch(key, fetcher) {
   if (RESOURCE_CACHE.has(key)) {
     const { timestamp, data, promise } = RESOURCE_CACHE.get(key);
     if (promise) return promise; // Deduplicate inflight requests
-    if (now - timestamp < CACHE_TTL_MS) {
+    if (data && now - timestamp < CACHE_TTL_MS) {
       return Promise.resolve(data);
     }
   }
 
   const promise = fetcher().then((res) => {
-    RESOURCE_CACHE.set(key, { timestamp: Date.now(), data: res, promise: null });
+    const isEmpty = !res ||
+      (res && res.nodes && Array.isArray(res.nodes) && res.nodes.length === 0) ||
+      (Array.isArray(res) && res.length === 0) ||
+      (typeof res === 'object' && Object.keys(res).length === 0);
+
+    if (!isEmpty) {
+      RESOURCE_CACHE.set(key, { timestamp: Date.now(), data: res, promise: null });
+    } else {
+      RESOURCE_CACHE.delete(key);
+    }
     return res;
   }).catch((err) => {
     RESOURCE_CACHE.delete(key);
@@ -25,6 +34,7 @@ function getCachedOrFetch(key, fetcher) {
   RESOURCE_CACHE.set(key, { timestamp: now, data: null, promise });
   return promise;
 }
+
 
 export function clearResourceCache(investigationId = null) {
   if (investigationId) {

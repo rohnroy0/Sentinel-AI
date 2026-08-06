@@ -1025,8 +1025,9 @@ export default function InvestigationGraph() {
       </div>
 
       {/* Graph Canvas */}
-      <div className="relative flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
-        <div className={`h-full ${selectedNode ? 'pr-[400px]' : ''}`}>
+      <div className="relative flex-1 min-h-[550px] bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
+        <div className={`h-full min-h-[550px] ${selectedNode ? 'pr-[400px]' : ''}`}>
+
           <ReactFlow
             nodes={styledNodes}
             edges={styledEdges}

@@ -665,10 +665,27 @@ async def get_resource(inv_id: str, resource: str, user_id: str = Depends(get_cu
                 detected_services=agent_status.get("discovered_hosts", [])
             )
 
+        agent_graph = agent_status.get("investigation_graph", {})
+        if not agent_graph or not isinstance(agent_graph, dict) or not agent_graph.get("nodes"):
+            agent_findings = agent_status.get("findings", [])
+            agent_services = agent_status.get("discovered_hosts", [])
+            if agent_findings or agent_services:
+                from ai.investigation_graph.builder import build_investigation_graph
+                agent_graph = build_investigation_graph(
+                    parsed_data={"open_ports": agent_services},
+                    detected_services=agent_services,
+                    rule_findings=agent_findings,
+                    risk_findings=agent_findings,
+                    chain_data=chain,
+                    remediation=agent_status.get("remediation", []),
+                )
+                agent_status["investigation_graph"] = agent_graph
+
         resource_map = {
             "findings": agent_status.get("findings", []),
             "detected-services": agent_status.get("discovered_hosts", []),
-            "graph": agent_status.get("investigation_graph", {}),
+            "graph": agent_graph,
+
             "attack-chain": chain,
             "attack-chains": chain,
             "decisions": agent_status.get("decision_log", agent_status.get("reasoning_steps", [])),
@@ -774,6 +791,19 @@ async def get_resource(inv_id: str, resource: str, user_id: str = Depends(get_cu
             "decisionCount": len(_decision_log),
         }
 
+    if not _graph or not isinstance(_graph, dict) or not _graph.get("nodes"):
+        if _findings or _services:
+            from ai.investigation_graph.builder import build_investigation_graph
+            _graph = build_investigation_graph(
+                parsed_data={"open_ports": _services},
+                detected_services=_services,
+                rule_findings=_findings,
+                risk_findings=_findings,
+                chain_data=_chains,
+                remediation=_remediation,
+            )
+            inv.graph = _graph
+
     _risk_dashboard = getattr(inv, "risk_dashboard", {})
     if not _risk_dashboard or not isinstance(_risk_dashboard, dict) or not _risk_dashboard.get("overallRisk") or not _risk_dashboard.get("overallScore"):
         _risk_dashboard = build_risk_dashboard(_findings, _chains, detected_services=_services)
@@ -782,6 +812,7 @@ async def get_resource(inv_id: str, resource: str, user_id: str = Depends(get_cu
         "findings": _findings,
         "detected-services": _services,
         "graph": _graph,
+
         "attack-chain": getattr(inv, "attack_chains", {"nodes": [], "edges": []}),
         "attack-chains": getattr(inv, "attack_chains", {"nodes": [], "edges": []}),
         "decisions": _decision_log,
