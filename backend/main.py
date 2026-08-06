@@ -580,7 +580,8 @@ async def start_investigation(inv_id: str, background_tasks: BackgroundTasks, us
 async def get_status(inv_id: str, user_id: str = Depends(get_current_user)):
     """Fast, lightweight status endpoint for polling progress without rebuilding graphs or reports."""
     # 1. Check Autonomous Agent state
-    agent_status = get_agent_status(inv_id)
+    agent_status = get_agent_status(inv_id, user_id=user_id)
+
     if agent_status:
         if agent_status.get('user_id') and agent_status.get('user_id') != user_id:
             raise HTTPException(status_code=403, detail='Access denied')
@@ -646,7 +647,8 @@ async def get_risk_dashboard_endpoint(inv_id: str, user_id: str = Depends(get_cu
 @app.get("/api/investigation/{inv_id}/{resource}")
 async def get_resource(inv_id: str, resource: str, user_id: str = Depends(get_current_user)):
     # 1. Check if this is an autonomous agent investigation
-    agent_status = get_agent_status(inv_id)
+    agent_status = get_agent_status(inv_id, user_id=user_id)
+
     if agent_status and agent_status.get('user_id') and agent_status.get('user_id') != user_id:
         raise HTTPException(status_code=403, detail='Access denied')
     if agent_status:
@@ -820,7 +822,8 @@ async def list_agent_investigations(user_id: str = Depends(get_current_user)):
 @app.get("/api/agent/status/{investigation_id}")
 async def check_agent_status(investigation_id: str, user_id: str = Depends(get_current_user)):
     """Returns the current agent step, findings, and final report status."""
-    status = get_agent_status(investigation_id)
+    status = get_agent_status(investigation_id, user_id=user_id)
+
     if not status:
         raise HTTPException(status_code=404, detail='Investigation not found')
     if status.get('user_id') and status.get('user_id') != user_id:
