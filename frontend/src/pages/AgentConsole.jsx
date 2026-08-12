@@ -290,12 +290,11 @@ export default function AgentConsole() {
               </div>
             </div>
 
-            {/* Launch Action Button */}
             <div className="pt-2">
               <button
                 onClick={startInvestigation}
                 disabled={isInvestigating || !scanData.trim()}
-                className={`w-full py-2.5 px-4 rounded-lg text-xs font-bold transition-all shadow-md flex items-center justify-center space-x-2 ${
+                className={`w-full py-2.5 px-4 rounded-md text-xs font-bold transition-all flex items-center justify-center space-x-2 ${
                   isInvestigating
                     ? 'bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)] cursor-not-allowed'
                     : 'bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white active:scale-[0.99]'
@@ -317,7 +316,7 @@ export default function AgentConsole() {
           </div>
 
           {/* Right Column: Large Nmap Input Editor */}
-          <div className="lg:col-span-7 space-y-1.5 flex flex-col">
+          <div className="lg:col-span-7 space-y-1.5 flex flex-col dark p-4 bg-[var(--bg)] rounded-lg">
             <div className="flex items-center justify-between text-xs font-semibold text-[var(--text)]">
               <span className="flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-[var(--brand)]" />
@@ -359,7 +358,7 @@ export default function AgentConsole() {
 
       {/* Live Investigation Progress Banner */}
       {isInvestigating && (
-        <div className="bg-[var(--surface)] border border-[var(--brand)]/40 rounded-xl p-4 shadow-md animate-pulse">
+        <div className="bg-[var(--bg)] border border-[var(--brand)]/40 rounded-xl p-4 animate-pulse dark">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="relative flex h-3 w-3">

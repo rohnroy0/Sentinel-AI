@@ -4,6 +4,16 @@ All notable changes to Sentinel-AI will be documented in this file.
 
 ---
 
+## Version — v1.3.0 (Build 2026.08.12)
+
+### UI Redesign: Anthropic/Claude Editorial Aesthetic:
+- **Design System Overhaul**: Transformed the global UI into a warm-canvas editorial interface inspired by Anthropic's Claude. Anchored on a tinted cream canvas (`#faf9f5`) with dark navy product surfaces (`#181715`) for contrast.
+- **Typography**: Replaced default sans-serif headers with a prominent serif display font (Copernicus/Garamond) paired with tight negative tracking for a literary, premium voice. Maintained humanist sans for body text.
+- **Colors & Components**: Updated primary accent to warm coral (`#cc785c`). Replaced heavy SaaS drop shadows and rounded corners with flatter color-blocked `surface-card` backgrounds and standardized `rounded-md` interactive elements.
+- **Updated Pages**: Overhauled `LandingPage.jsx`, `AgentConsole.jsx`, `DashboardOverview.jsx`, `Login.jsx`, and core layouts (`TopNavbar`, `Sidebar`) without modifying underlying application logic, maintaining strict functional parity.
+
+---
+
 ## Current Version — v1.2.3 (Build 2026.08.06)
 
 ### Investigation History Card Data & Title Fix:

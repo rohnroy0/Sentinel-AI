@@ -11,12 +11,12 @@ export default function TopNavbar() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   return (
-    <header className="h-16 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-end px-6 shrink-0 z-10 gap-3">
+    <header className="h-16 bg-[var(--bg)] border-b border-[var(--border)] flex items-center justify-end px-6 shrink-0 z-10 gap-3 font-sans">
       {/* Active investigation indicator */}
       {invId && (
         <Link
           to="/app/findings"
-          className="hidden md:flex items-center gap-2 bg-[var(--sidebar)] border border-[var(--sidebar-active)] text-[var(--brand)] px-3 py-1.5 rounded-full text-xs font-semibold hover:bg-[var(--sidebar-active)] transition-colors"
+          className="hidden md:flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-[var(--surface-2)] transition-colors"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] animate-pulse" />
           <span>Active Investigation</span>
@@ -37,16 +37,16 @@ export default function TopNavbar() {
         <button
           onClick={() => setShowDropdown(!showDropdown)}
           type="button"
-          className="flex items-center gap-2 hover:bg-[var(--surface-2)] rounded-full pl-1 pr-2 py-1 transition-colors"
+          className="flex items-center gap-2 hover:bg-[var(--surface-2)] rounded-md pl-1 pr-2 py-1 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-[var(--brand)] flex items-center justify-center text-white text-[11px] font-bold">
+          <div className="w-8 h-8 rounded-md bg-[var(--brand)] flex items-center justify-center text-white text-[11px] font-bold">
             <User className="w-4 h-4" />
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
         </button>
 
         {showDropdown && (
-          <div className="absolute top-12 right-0 w-48 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-lg py-1 z-50">
+          <div className="absolute top-12 right-0 w-48 bg-[var(--surface)] border border-[var(--border)] rounded-md py-1 z-50">
             <div className="px-4 py-2 border-b border-[var(--border)]">
               <p className="text-xs text-[var(--text-muted)] font-medium truncate">{user?.email}</p>
             </div>

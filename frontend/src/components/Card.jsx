@@ -2,7 +2,7 @@
 export default function Card({ as: Tag = 'div', className = '', padding = 'p-5', children, ...props }) {
   return (
     <Tag
-      className={`bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-sm ${padding} ${className}`}
+      className={`bg-[var(--surface)] border border-[var(--border)] rounded-lg ${padding} ${className}`}
       {...props}
     >
       {children}

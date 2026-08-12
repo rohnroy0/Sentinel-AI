@@ -80,13 +80,13 @@ export default function Sidebar() {
       {/* Sidebar container */}
       <div
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 w-64 h-screen bg-[var(--sidebar)] border-r border-[var(--border)] transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col',
+          'fixed inset-y-0 left-0 z-40 w-64 h-screen bg-[var(--bg)] border-r border-[var(--border)] transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col font-sans',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Brand block */}
-        <div className="flex items-center h-20 px-5 border-b border-[var(--sidebar-active)] shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center mr-3 shadow-sm">
+        <div className="flex items-center h-20 px-5 border-b border-[var(--border)] shrink-0">
+          <div className="w-10 h-10 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center mr-3">
             <Cpu className="w-5 h-5 text-[var(--brand)]" />
           </div>
           <div className="min-w-0">
@@ -112,7 +112,7 @@ export default function Sidebar() {
                       onClick={() => setIsMobileOpen(false)}
                       className={({ isActive }) =>
                         clsx(
-                          'flex items-center px-3 py-2.5 rounded-r-lg transition-all text-sm font-medium group border-l-4',
+                          'flex items-center px-3 py-2.5 rounded-r-md transition-all text-sm font-medium group border-l-4',
                           isActive
                             ? 'bg-[var(--sidebar-active)] text-[var(--brand)] border-[var(--brand)]'
                             : 'text-[var(--text-muted)] border-transparent hover:bg-[var(--surface)] hover:text-[var(--text)]'

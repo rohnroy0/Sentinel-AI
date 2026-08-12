@@ -98,7 +98,7 @@ export default function DashboardOverview() {
           <div className="mt-8">
             <Link
               to="/app/upload"
-              className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-sm shadow-[var(--brand)]/20"
+              className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-[var(--on-primary)] px-6 py-3 rounded-md font-semibold transition-colors shadow-sm shadow-[var(--brand)]/20"
             >
               <Plus className="w-5 h-5" />
               <span>Start new investigation</span>
@@ -227,14 +227,14 @@ export default function DashboardOverview() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setInvestigationId(null)}
-            className="inline-flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)] px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--bg)] text-[var(--text)] px-4 py-2 rounded-md text-sm font-semibold transition-colors"
           >
             <LayoutDashboard className="w-4 h-4" />
             <span>All Investigations</span>
           </button>
           <Link
             to="/app/upload"
-            className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-[var(--on-primary)] px-4 py-2 rounded-md text-sm font-semibold transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>New investigation</span>

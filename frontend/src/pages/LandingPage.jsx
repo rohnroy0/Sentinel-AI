@@ -9,11 +9,8 @@ import {
 import { useEffect } from 'react';
 
 export default function LandingPage() {
-  // Force dark mode for the landing page
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-    // Optional: Return a cleanup function if you want to revert on unmount,
-    // but typically we'll keep it or let the app's ThemeProvider handle it later.
+    document.documentElement.classList.remove('dark');
   }, []);
 
   return (
@@ -36,8 +33,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              to="/app/upload"
-              className="text-sm font-semibold bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-5 py-2 rounded-lg transition-colors shadow-sm shadow-[var(--brand)]/20"
+              className="text-sm font-semibold bg-[var(--brand)] hover:bg-[var(--brand-700)] text-[var(--on-primary)] px-5 py-2 rounded-md transition-colors"
             >
               Start Investigation
             </Link>
@@ -54,9 +50,9 @@ export default function LandingPage() {
             <span className="text-xs font-semibold text-[var(--brand)] tracking-wide uppercase">v1.0 is live</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-[var(--text)] leading-[1.1] mb-6">
+          <h1 className="text-5xl md:text-7xl font-serif font-normal tracking-[-1.5px] text-[var(--text)] leading-[1.05] mb-6">
             Autonomous AI-Powered <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+            <span className="text-[var(--brand)]">
               Security Operations Platform
             </span>
           </h1>
@@ -68,14 +64,14 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/app/upload"
-              className="inline-flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-indigo-500 text-white px-8 py-4 rounded-xl font-semibold transition-all shadow-lg shadow-indigo-500/25 hover:scale-105"
+              className="inline-flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-[var(--on-primary)] px-8 py-4 rounded-md font-semibold transition-all hover:scale-[1.02]"
             >
               <span>Start Investigation</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <a
               href="#how-it-works"
-              className="inline-flex items-center justify-center gap-2 bg-[var(--surface-2)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text)] px-8 py-4 rounded-xl font-semibold transition-all hover:scale-105"
+              className="inline-flex items-center justify-center gap-2 bg-[var(--bg)] border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text)] px-8 py-4 rounded-md font-semibold transition-all hover:scale-[1.02]"
             >
               <span>Explore How It Works</span>
             </a>
@@ -183,7 +179,7 @@ export default function LandingPage() {
       <section className="py-20 bg-[var(--surface-2)] border-y border-[var(--border)]">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <Shield className="w-12 h-12 text-[var(--brand)] mx-auto mb-6" />
-          <h2 className="text-3xl font-extrabold text-[var(--text)] mb-6">What is Sentinel-AI?</h2>
+          <h2 className="text-4xl font-serif font-normal tracking-[-1px] text-[var(--text)] mb-6">What is Sentinel-AI?</h2>
           <p className="text-lg text-[var(--text-muted)] leading-relaxed">
             Sentinel-AI is an autonomous security investigation platform that transforms raw network scan data into actionable security intelligence. 
             It combines <span className="text-[var(--text)] font-semibold">network discovery</span>, <span className="text-[var(--text)] font-semibold">vulnerability intelligence</span>, <span className="text-[var(--text)] font-semibold">AI reasoning</span>, and <span className="text-[var(--text)] font-semibold">MITRE ATT&CK mapping</span> to provide context-aware risk analysis and remediation guidance.
@@ -513,12 +509,12 @@ export default function LandingPage() {
       </section>
 
       {/* 14. Getting Started */}
-      <section className="py-24 bg-[var(--surface-2)] border-t border-[var(--border)]">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-extrabold text-[var(--text)] mb-12">Start investigating in minutes</h2>
+      <section className="py-24 max-w-7xl mx-auto px-6">
+        <div className="bg-[var(--brand)] rounded-xl p-16 text-center shadow-lg">
+          <h2 className="text-4xl font-serif font-normal tracking-[-1px] text-[var(--on-primary)] mb-12">Start investigating in minutes</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
-             <div className="hidden md:block absolute top-6 left-10 right-10 h-0.5 bg-[var(--border-strong)] z-0"></div>
+             <div className="hidden md:block absolute top-6 left-10 right-10 h-0.5 bg-[var(--on-primary)]/20 z-0"></div>
             {[
               'Create Account',
               'Upload Nmap Scan',
@@ -527,10 +523,10 @@ export default function LandingPage() {
               'Review Findings'
             ].map((step, i) => (
               <div key={step} className="relative z-10 flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-[var(--brand)] text-white font-bold flex items-center justify-center text-lg mb-4 shadow-lg shadow-[var(--brand)]/20">
+                <div className="w-12 h-12 rounded-full bg-[var(--bg)] text-[var(--brand)] font-bold flex items-center justify-center text-lg mb-4">
                   {i + 1}
                 </div>
-                <p className="text-sm font-semibold text-[var(--text)]">{step}</p>
+                <p className="text-sm font-semibold text-[var(--on-primary)]">{step}</p>
               </div>
             ))}
           </div>
@@ -538,7 +534,7 @@ export default function LandingPage() {
           <div className="mt-16">
             <Link
               to="/app/upload"
-              className="inline-flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-700)] text-white px-8 py-4 rounded-xl font-semibold transition-colors shadow-lg shadow-[var(--brand)]/20"
+              className="inline-flex items-center justify-center gap-2 bg-[var(--bg)] hover:bg-[var(--surface-2)] text-[var(--text)] px-8 py-4 rounded-md font-semibold transition-colors"
             >
               Launch Platform <ArrowRight className="w-4 h-4" />
             </Link>

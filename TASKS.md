@@ -27,6 +27,7 @@ This document tracks active development tasks, priority queues, and completed mi
 ---
 
 ## Completed:
+- [x] **UI Redesign (Anthropic/Claude Aesthetic):** Applied a warm cream canvas, serif display typography, coral primary CTAs, and dark navy product surfaces across all frontend components (Landing, Login, Dashboard, Agent Console) while preserving strict functional parity.
 - [x] **Autonomous LangGraph Agent Engine:** Built autonomous state machine with Planner, Tool, Reasoning, and Memory nodes.
 - [x] **Autonomous Agent Security Tools:** Implemented tools for Nmap parsing, CVE lookup, risk scoring, attack graph construction, threat intelligence, and reporting.
 - [x] **Hybrid CVE Lookup Service:** Implemented offline JSON cache with online NVD fallback.

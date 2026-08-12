@@ -4,111 +4,110 @@
 
 :root {
   /* Base */
-  --bg: #F8F9FB;
-  --surface: #FFFFFF;
-  --surface-2: #F1F3F7;
-  --sidebar: #EEF2FF;
-  --sidebar-active: #E0E7FF;
+  --bg: #faf9f5;
+  --surface: #efe9de;
+  --surface-2: #f5f0e8;
+  --sidebar: #faf9f5;
+  --sidebar-active: #efe9de;
 
-  /* Brand */
-  --brand: #4F46E5;
-  --brand-700: #3730A3;
-  --brand-accent: #6366F1;
+  /* Brand (Coral) */
+  --brand: #cc785c;
+  --brand-700: #a9583e;
+  --brand-accent: #cc785c;
 
   /* Border */
-  --border: #E5E7EB;
-  --border-strong: #CBD5E1;
+  --border: #e6dfd8;
+  --border-strong: #ebe6df;
 
   /* Text */
-  --text: #0F1B2D;
-  --text-muted: #5B6B7D;
-  --text-subtle: #94A3B8;
+  --text: #141413;
+  --text-muted: #6c6a64;
+  --text-subtle: #8e8b82;
 
   /* Status */
-  --success: #16A34A;
-  --success-bg: #DCFCE7;
-  --success-border: #86EFAC;
+  --success: #5db872;
+  --success-bg: #e8e0d2;
+  --success-border: #5db872;
 
-  --warning: #D97706;
-  --warning-bg: #FEF3C7;
-  --warning-border: #FCD34D;
+  --warning: #d4a017;
+  --warning-bg: #efe9de;
+  --warning-border: #d4a017;
 
-  --danger: #DC2626;
-  --danger-bg: #FEE2E2;
-  --danger-border: #FCA5A5;
+  --danger: #c64545;
+  --danger-bg: #e6dfd8;
+  --danger-border: #c64545;
 
-  --info: #2563EB;
-  --info-bg: #DBEAFE;
-  --info-border: #93C5FD;
+  --info: #5db8a6;
+  --info-bg: #e8e0d2;
+  --info-border: #5db8a6;
 
   /* Scrollbar */
-  --scrollbar-thumb: #CBD5E1;
-  --scrollbar-thumb-hover: #94A3B8;
+  --scrollbar-thumb: #e6dfd8;
+  --scrollbar-thumb-hover: #cc785c;
 
-  /* Shadow (uses raw color so the rgba cast resolves at the theme boundary) */
-  --shadow: rgba(15, 27, 45, 0.06);
-  --shadow-strong: rgba(15, 27, 45, 0.10);
+  /* Shadow (Minimal for Claude) */
+  --shadow: transparent;
+  --shadow-strong: transparent;
 
   /* Inline code */
-  --code-text: #166534;
+  --code-text: #141413;
 
-  /* Severity accent (used by inline style={{ backgroundColor: 'var(--sev-critical)' }}) */
-  --sev-critical: #DC2626;
-  --sev-high: #EA580C;
-  --sev-medium: #D97706;
-  --sev-low: #2563EB;
-  --sev-info: #64748B;
+  /* Severity accent */
+  --sev-critical: #c64545;
+  --sev-high: #e8a55a;
+  --sev-medium: #d4a017;
+  --sev-low: #5db8a6;
+  --sev-info: #6c6a64;
 }
 
-/* Dark overrides — every token is redefined so flipping <html class="dark">
-   cascades through every UI surface. */
+/* Dark mode overrides - used for dark navy product surfaces */
 .dark {
-  --bg: #0B1220;
-  --surface: #111827;
-  --surface-2: #1F2937;
-  --sidebar: #0F172A;
-  --sidebar-active: #1E293B;
+  --bg: #181715;
+  --surface: #252320;
+  --surface-2: #1f1e1b;
+  --sidebar: #181715;
+  --sidebar-active: #252320;
 
-  --brand: #818CF8;
-  --brand-700: #A5B4FC;
-  --brand-accent: #A5B4FC;
+  --brand: #cc785c;
+  --brand-700: #a9583e;
+  --brand-accent: #cc785c;
 
-  --border: #1F2937;
-  --border-strong: #374151;
+  --border: #252320;
+  --border-strong: #1f1e1b;
 
-  --text: #F1F5F9;
-  --text-muted: #94A3B8;
-  --text-subtle: #64748B;
+  --text: #faf9f5;
+  --text-muted: #a09d96;
+  --text-subtle: #8e8b82;
 
-  --success: #22C55E;
-  --success-bg: #052E16;
-  --success-border: #14532D;
+  --success: #5db872;
+  --success-bg: #1f1e1b;
+  --success-border: #5db872;
 
-  --warning: #F59E0B;
-  --warning-bg: #3B2A05;
-  --warning-border: #78350F;
+  --warning: #d4a017;
+  --warning-bg: #252320;
+  --warning-border: #d4a017;
 
-  --danger: #F87171;
-  --danger-bg: #3F0F12;
-  --danger-border: #7F1D1D;
+  --danger: #c64545;
+  --danger-bg: #252320;
+  --danger-border: #c64545;
 
-  --info: #60A5FA;
-  --info-bg: #0C2447;
-  --info-border: #1E3A8A;
+  --info: #5db8a6;
+  --info-bg: #1f1e1b;
+  --info-border: #5db8a6;
 
-  --scrollbar-thumb: #374151;
-  --scrollbar-thumb-hover: #4B5563;
+  --scrollbar-thumb: #1f1e1b;
+  --scrollbar-thumb-hover: #252320;
 
-  --shadow: rgba(0, 0, 0, 0.4);
-  --shadow-strong: rgba(0, 0, 0, 0.6);
+  --shadow: transparent;
+  --shadow-strong: transparent;
 
-  --code-text: #86EFAC;
+  --code-text: #5db8a6;
 
-  --sev-critical: #F87171;
-  --sev-high: #FB923C;
-  --sev-medium: #FBBF24;
-  --sev-low: #60A5FA;
-  --sev-info: #94A3B8;
+  --sev-critical: #c64545;
+  --sev-high: #e8a55a;
+  --sev-medium: #d4a017;
+  --sev-low: #5db8a6;
+  --sev-info: #6c6a64;
 }
 
 /* Smooth theme transitions on surfaces and text. */
